@@ -39,7 +39,7 @@ Não é ferramenta institucional: sem autenticação, sem alertas por e-mail/Wha
 | Alertas | Apenas visual (cards vermelhos) |
 | Sentimento | Dual: institucional (gov/RS) + temático (keyword) |
 | Fontes | G1 RS, Zero Hora, Correio do Povo, Gaúcha ZH, ANP, Sul21, Agência Brasil (filtro RS) |
-| Keywords | Lista fixa (10–20 termos); alteração via deploy |
+| Keywords | Lista fixa (18 termos); alteração via deploy |
 | Histórico | Snapshot do dia + gráfico linha 7 dias por keyword |
 | Atualização | 2×/dia — 07:00 e 18:00 (horário de Brasília) |
 | Infra | Nuvem pública; LLM externo permitido |
@@ -114,20 +114,44 @@ Cada coletor retorna: `title`, `url`, `published_at`, `source_id`, `section` (op
 
 ---
 
-## 5. Palavras-chave (seed MVP)
+## 5. Palavras-chave (lista definitiva — MVP)
 
-Lista provisória até o operador enviar a definitiva:
+18 termos monitorados (lista fixa; alteração via deploy):
 
-1. gestão pública  
-2. reforma administrativa  
-3. PPP  
-4. eficiência  
-5. governança  
-6. licitação  
-7. concurso público  
-8. desestatização  
+| # | Termo |
+|---|-------|
+| 1 | acordo de resultados |
+| 2 | projetos estratégicos |
+| 3 | plano plurianual |
+| 4 | ppa rs |
+| 5 | modernização administrativa |
+| 6 | reforma administrativa |
+| 7 | eficiência na gestão |
+| 8 | governo digital |
+| 9 | rs.gov.br |
+| 10 | inovação no setor público |
+| 11 | funcionalismo público |
+| 12 | servidores estaduais |
+| 13 | concurso público rs |
+| 14 | patrimônio do estado |
+| 15 | parcerias público-privadas |
+| 16 | ppp rs |
+| 17 | concessões públicas |
+| 18 | spgg |
 
-Matching: termo exato + sinônimos configurados no seed (ex.: "parceria público-privada" → PPP).
+### Sinônimos sugeridos no seed (matching ampliado)
+
+| Termo principal | Sinônimos / variantes |
+|-------------------|----------------------|
+| ppa rs | ppa, plano plurianual rs |
+| parcerias público-privadas | ppp, parceria público-privada |
+| ppp rs | ppp, parcerias público-privadas |
+| rs.gov.br | portal rs gov |
+| spgg | secretaria de planejamento governança e gestão |
+| concurso público rs | concurso público, concurso rs |
+| eficiência na gestão | eficiência, gestão eficiente |
+
+Matching: busca case-insensitive no título e snippet; sinônimos configurados no seed JSON/SQL.
 
 ---
 
