@@ -1,12 +1,12 @@
-# Painel Humor do Ecossistema RS — Implementation Plan
+# Painel Humor do Ecossistema RS — Implementation Plan (Rails)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a public dashboard that collects Gaúcho news headlines twice daily, analyzes dual sentiment per keyword, highlights critical topics in red, and shows Top 3 AI summaries plus 7-day trend charts.
+**Goal:** Build a public Rails dashboard that collects Gaúcho news twice daily via Sidekiq, analyzes dual sentiment with DeepSeek, highlights critical topics in red, and shows Top 3 summaries plus 7-day trend charts.
 
-**Architecture:** Python pipeline (collect → match → LLM analyze → aggregate) writes to PostgreSQL; FastAPI serves a public REST API; Next.js renders the dashboard. Cron triggers at 07:00 and 18:00 BRT.
+**Architecture:** Rails monolith — scrapers + services + Sidekiq jobs write to PostgreSQL; ERB/Hotwire views render the public dashboard. `sidekiq-cron` triggers at 07:00 and 18:00 BRT.
 
-**Tech Stack:** Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL 16, DeepSeek API (OpenAI-compatible SDK), pytest; Next.js 14, Tailwind, Recharts; Docker Compose.
+**Tech Stack:** Ruby 3.3+, Rails 7.2+, Sidekiq, sidekiq-cron, Redis, PostgreSQL, feedjira, nokogiri, faraday, ruby-openai (DeepSeek), tailwindcss-rails, chartkick, rspec-rails.
 
 **Spec:** `docs/superpowers/specs/2026-06-20-painel-humor-ecossistema-rs-design.md`
 
@@ -16,256 +16,160 @@
 
 ```
 analisehumornoticias/
-├── docker-compose.yml          # postgres + api + (optional) frontend
-├── .env.example                # DATABASE_URL, DEEPSEEK_API_KEY
-├── backend/
-│   ├── pyproject.toml
-│   ├── alembic.ini
-│   ├── alembic/versions/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py             # FastAPI app + CORS
-│   │   ├── config.py           # env settings
-│   │   ├── db.py               # engine + session
-│   │   ├── models.py           # SQLAlchemy models
-│   │   ├── schemas.py          # Pydantic response models
-│   │   ├── seed.py             # sources + keywords seed data
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── briefing.py
-│   │   │   ├── snapshots.py
-│   │   │   ├── keywords.py
-│   │   │   └── meta.py
-│   │   ├── services/
-│   │   │   ├── matcher.py      # keyword matching
-│   │   │   ├── sentiment.py    # LLM dual sentiment
-│   │   │   ├── relevance.py    # score 0-100
-│   │   │   ├── aggregator.py   # snapshots + critical logic
-│   │   │   ├── briefing.py     # Top 3 + summaries
-│   │   │   └── pipeline.py     # orchestrates full run
-│   │   └── collectors/
-│   │       ├── base.py
-│   │       ├── rss.py
-│   │       └── registry.py     # maps source slug → collector
-│   ├── scripts/
-│   │   └── run_pipeline.py     # CLI entry for cron
-│   └── tests/
-│       ├── conftest.py
-│       ├── test_matcher.py
-│       ├── test_relevance.py
-│       ├── test_aggregator.py
-│       └── test_api.py
-└── frontend/
-    ├── package.json
-    ├── next.config.js
-    ├── tailwind.config.ts
-    ├── lib/api.ts                # fetch helpers
-    ├── app/
-    │   ├── layout.tsx
-    │   ├── page.tsx              # home dashboard
-    │   ├── globals.css
-    │   └── keywords/[id]/page.tsx
-    └── components/
-        ├── TopBriefing.tsx
-        ├── KeywordCard.tsx
-        ├── TrendChart.tsx
-        └── SentimentBadge.tsx
+├── Procfile.dev                    # web + css + sidekiq
+├── Procfile                        # deploy: web + worker
+├── .env.example
+├── Gemfile
+├── config/
+│   ├── routes.rb
+│   ├── schedule.yml                # sidekiq-cron
+│   ├── initializers/deepseek.rb
+│   └── sidekiq.yml
+├── db/
+│   ├── migrate/
+│   └── seeds.rb
+├── app/
+│   ├── models/
+│   ├── services/
+│   ├── scrapers/
+│   ├── jobs/news_pipeline_job.rb
+│   ├── controllers/
+│   ├── views/
+│   └── helpers/
+└── spec/
+    ├── services/
+    ├── scrapers/
+    └── requests/
 ```
 
 ---
 
 ## Keywords seed (definitive)
 
-```python
+```ruby
+# db/seeds.rb
 KEYWORDS = [
-    ("acordo de resultados", []),
-    ("projetos estratégicos", []),
-    ("plano plurianual", ["ppa"]),
-    ("ppa rs", ["ppa", "plano plurianual rs"]),
-    ("modernização administrativa", []),
-    ("reforma administrativa", []),
-    ("eficiência na gestão", ["eficiência", "gestão eficiente"]),
-    ("governo digital", []),
-    ("rs.gov.br", ["portal rs gov"]),
-    ("inovação no setor público", []),
-    ("funcionalismo público", []),
-    ("servidores estaduais", []),
-    ("concurso público rs", ["concurso público", "concurso rs"]),
-    ("patrimônio do estado", []),
-    ("parcerias público-privadas", ["ppp", "parceria público-privada"]),
-    ("ppp rs", ["ppp", "parcerias público-privadas"]),
-    ("concessões públicas", []),
-    ("spgg", ["secretaria de planejamento governança e gestão"]),
-]
+  ["acordo de resultados", []],
+  ["projetos estratégicos", []],
+  ["plano plurianual", %w[ppa]],
+  ["ppa rs", %w[ppa plano\ plurianual\ rs]],
+  ["modernização administrativa", []],
+  ["reforma administrativa", []],
+  ["eficiência na gestão", %w[eficiência gestão\ eficiente]],
+  ["governo digital", []],
+  ["rs.gov.br", %w[portal\ rs\ gov]],
+  ["inovação no setor público", []],
+  ["funcionalismo público", []],
+  ["servidores estaduais", []],
+  ["concurso público rs", %w[concurso\ público concurso\ rs]],
+  ["patrimônio do estado", []],
+  ["parcerias público-privadas", %w[ppp parceria\ público-privada]],
+  ["ppp rs", %w[ppp parcerias\ público-privadas]],
+  ["concessões públicas", []],
+  ["spgg", %w[secretaria\ de\ planejamento\ governança\ e\ gestão]]
+].freeze
 ```
 
 ---
 
-### Task 1: Project scaffold + Docker Compose
+### Task 1: Rails app scaffold
 
 **Files:**
-- Create: `docker-compose.yml`, `.env.example`, `.gitignore`, `backend/pyproject.toml`
+- Create: Rails app root, `Gemfile`, `.env.example`, `Procfile`, `Procfile.dev`
 
-- [ ] **Step 1: Create `.gitignore`**
+- [ ] **Step 1: Generate Rails app**
 
-```gitignore
-.env
-__pycache__/
-*.pyc
-.venv/
-node_modules/
-.next/
-.pytest_cache/
+Run:
+```bash
+rails new . --database=postgresql --css=tailwind --skip-test
 ```
 
-- [ ] **Step 2: Create `.env.example`**
+- [ ] **Step 2: Add gems to `Gemfile`**
+
+```ruby
+gem "sidekiq"
+gem "sidekiq-cron"
+gem "redis"
+gem "feedjira"
+gem "nokogiri"
+gem "faraday"
+gem "ruby-openai"
+gem "chartkick"
+gem "groupdate"
+gem "rack-attack"
+
+group :development, :test do
+  gem "rspec-rails"
+  gem "webmock"
+  gem "vcr"
+  gem "dotenv-rails"
+end
+```
+
+Run: `bundle install`
+
+- [ ] **Step 3: Create `.env.example`**
 
 ```bash
-DATABASE_URL=postgresql+psycopg://humor:humor@localhost:5432/humor_rs
-DEEPSEEK_API_KEY=sk-...
+DATABASE_URL=postgresql://humor:humor@localhost:5432/humor_rs_development
+REDIS_URL=redis://localhost:6379/0
+DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-v4-flash
-API_HOST=0.0.0.0
-API_PORT=8000
-NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-- [ ] **Step 3: Create `docker-compose.yml`**
+- [ ] **Step 4: Configure ActiveJob → Sidekiq**
 
-```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: humor
-      POSTGRES_PASSWORD: humor
-      POSTGRES_DB: humor_rs
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  api:
-    build: ./backend
-    env_file: .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-
-volumes:
-  pgdata:
+```ruby
+# config/application.rb
+config.active_job.queue_adapter = :sidekiq
 ```
-
-- [ ] **Step 4: Create `backend/pyproject.toml`**
-
-```toml
-[project]
-name = "humor-ecossistema-rs"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = [
-  "fastapi>=0.115.0",
-  "uvicorn[standard]>=0.32.0",
-  "sqlalchemy>=2.0.36",
-  "psycopg[binary]>=3.2.3",
-  "alembic>=1.14.0",
-  "pydantic-settings>=2.6.0",
-  "httpx>=0.28.0",
-  "feedparser>=6.0.11",
-  "beautifulsoup4>=4.12.3",
-  "openai>=1.57.0",
-  "python-dateutil>=2.9.0",
-]
-
-[project.optional-dependencies]
-dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0", "httpx>=0.28.0"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-```
-
-- [ ] **Step 5: Verify Docker starts**
-
-Run: `docker compose up -d db && docker compose ps`
-Expected: `db` container running, port 5432 exposed
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add .gitignore .env.example docker-compose.yml backend/pyproject.toml
-git commit -m "chore: scaffold backend project and docker compose"
-```
-
----
-
-### Task 2: Database models + Alembic migration
-
-**Files:**
-- Create: `backend/app/config.py`, `backend/app/db.py`, `backend/app/models.py`, `backend/alembic.ini`, `backend/alembic/env.py`, `backend/alembic/versions/001_initial.py`
-
-- [ ] **Step 1: Write `backend/app/config.py`**
-
-```python
-from pydantic_settings import BaseSettings
-
-class Settings(BaseSettings):
-    database_url: str = "postgresql+psycopg://humor:humor@localhost:5432/humor_rs"
-    deepseek_api_key: str = ""
-    deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-v4-flash"
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
-
-    class Config:
-        env_file = ".env"
-
-settings = Settings()
-```
-
-- [ ] **Step 2: Write `backend/app/db.py`**
-
-```python
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from app.config import settings
-
-engine = create_engine(settings.database_url)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-class Base(DeclarativeBase):
-    pass
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-```
-
-- [ ] **Step 3: Write `backend/app/models.py`** (matches spec section 9)
-
-Define: `Source`, `Keyword`, `Article`, `ArticleAnalysis`, `DailySnapshot`, `DailyBriefing` with columns from spec.
-
-- [ ] **Step 4: Generate Alembic migration `001_initial.py`**
-
-Run from `backend/`:
-```bash
-pip install -e ".[dev]"
-alembic init alembic
-# wire env.py to Base.metadata
-alembic revision --autogenerate -m "initial schema"
-alembic upgrade head
-```
-Expected: 6 tables created in PostgreSQL
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/app/config.py backend/app/db.py backend/app/models.py backend/alembic/
-git commit -m "feat: add SQLAlchemy models and initial migration"
+git add .
+git commit -m "chore: scaffold Rails app with Sidekiq and dependencies"
+```
+
+---
+
+### Task 2: Models and migrations
+
+**Files:**
+- Create: `db/migrate/*`, `app/models/*.rb`
+
+- [ ] **Step 1: Generate models**
+
+Run:
+```bash
+rails g model Source slug:string:uniq name:string base_url:text fetch_type:string fetch_config:jsonb
+rails g model Keyword term:string:uniq synonyms:string
+rails g model Article source:references title:text url:text:uniq published_at:datetime content_snippet:text
+rails g model ArticleAnalysis article:references keyword:references sentiment_institutional:string sentiment_thematic:string relevance_score:integer
+rails g model DailySnapshot snapshot_date:date slot:string keyword:references pct_positive:decimal pct_neutral:decimal pct_negative:decimal article_count:integer is_critical:boolean
+rails g model DailyBriefing briefing_date:date slot:string items:jsonb
+```
+
+Add unique indexes per spec section 9.
+
+- [ ] **Step 2: Add model validations and associations**
+
+```ruby
+# app/models/article_analysis.rb
+validates :sentiment_institutional, inclusion: { in: %w[positive neutral negative] }
+validates :sentiment_thematic, inclusion: { in: %w[positive neutral negative] }
+```
+
+- [ ] **Step 3: Run migrations**
+
+Run: `rails db:create db:migrate`
+Expected: 6 tables created
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "feat: add ActiveRecord models and migrations"
 ```
 
 ---
@@ -273,451 +177,302 @@ git commit -m "feat: add SQLAlchemy models and initial migration"
 ### Task 3: Seed sources and keywords
 
 **Files:**
-- Create: `backend/app/seed.py`, `backend/scripts/seed_db.py`
+- Modify: `db/seeds.rb`
 
-- [ ] **Step 1: Write `backend/app/seed.py`**
+- [ ] **Step 1: Write seeds for 7 sources + 18 keywords**
 
-Include 7 sources (G1 RS, Zero Hora, Correio do Povo, Gaúcha ZH, ANP, Sul21, Agência Brasil) with `fetch_type` and `fetch_config` (RSS URLs as placeholders to be validated).
+```ruby
+sources = [
+  { slug: "g1_rs", name: "G1 RS", fetch_type: "rss", fetch_config: { url: "..." } },
+  { slug: "zero_hora", name: "Zero Hora", fetch_type: "rss", fetch_config: { url: "..." } },
+  # ... correio, gaucha_zh, anp, sul21, agencia_brasil
+]
+sources.each { |attrs| Source.find_or_create_by!(slug: attrs[:slug]) { |s| s.assign_attributes(attrs) } }
 
-Include all 18 keywords from definitive list above.
-
-- [ ] **Step 2: Write `backend/scripts/seed_db.py`**
-
-```python
-from app.db import SessionLocal
-from app.seed import seed_all
-
-if __name__ == "__main__":
-    db = SessionLocal()
-    seed_all(db)
-    db.commit()
-    print("Seed complete")
+KEYWORDS.each { |term, synonyms| Keyword.find_or_create_by!(term: term) { |k| k.synonyms = synonyms } }
 ```
 
-- [ ] **Step 3: Run seed**
+- [ ] **Step 2: Run seed**
 
-Run: `cd backend && python scripts/seed_db.py`
-Expected: `18 keywords, 7 sources` inserted
+Run: `rails db:seed`
+Expected: 7 sources, 18 keywords
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add backend/app/seed.py backend/scripts/seed_db.py
 git commit -m "feat: seed 7 news sources and 18 keywords"
 ```
 
 ---
 
-### Task 4: Keyword matcher (TDD)
+### Task 4: KeywordMatcher service (TDD)
 
 **Files:**
-- Create: `backend/app/services/matcher.py`, `backend/tests/test_matcher.py`
+- Create: `app/services/keyword_matcher.rb`, `spec/services/keyword_matcher_spec.rb`
 
-- [ ] **Step 1: Write failing test**
+- [ ] **Step 1: Write failing spec**
 
-```python
-# backend/tests/test_matcher.py
-from app.services.matcher import match_keywords
+```ruby
+RSpec.describe KeywordMatcher do
+  let(:keywords) { [Keyword.new(id: 1, term: "spgg", synonyms: ["secretaria de planejamento"])] }
 
-def test_matches_term_in_title():
-    keywords = [{"id": 1, "term": "spgg", "synonyms": ["secretaria de planejamento"]}]
-    article = {"title": "SPGG apresenta novo plano", "content_snippet": ""}
-    matches = match_keywords(article, keywords)
-    assert len(matches) == 1
-    assert matches[0]["keyword_id"] == 1
+  it "matches term in title" do
+    article = Article.new(title: "SPGG apresenta novo plano", content_snippet: "")
+    matches = described_class.call(article, keywords)
+    expect(matches.map(&:id)).to eq([1])
+  end
 
-def test_matches_synonym_case_insensitive():
-    keywords = [{"id": 2, "term": "ppp rs", "synonyms": ["parcerias público-privadas"]}]
-    article = {"title": "Estado avança em Parcerias Público-Privadas", "content_snippet": ""}
-    matches = match_keywords(article, keywords)
-    assert any(m["keyword_id"] == 2 for m in matches)
-
-def test_no_match_returns_empty():
-    keywords = [{"id": 1, "term": "spgg", "synonyms": []}]
-    article = {"title": "Time gaúcho vence clássico", "content_snippet": ""}
-    assert match_keywords(article, keywords) == []
-```
-
-- [ ] **Step 2: Run test — expect FAIL**
-
-Run: `cd backend && pytest tests/test_matcher.py -v`
-Expected: FAIL — module not found
-
-- [ ] **Step 3: Implement `matcher.py`**
-
-```python
-import re
-from typing import Any
-
-def _normalize(text: str) -> str:
-    return text.lower().strip()
-
-def match_keywords(article: dict[str, Any], keywords: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    haystack = _normalize(f"{article.get('title', '')} {article.get('content_snippet', '')}")
-    results = []
-    for kw in keywords:
-        terms = [_normalize(kw["term"]), *[_normalize(s) for s in kw.get("synonyms", [])]]
-        if any(re.search(re.escape(t), haystack) for t in terms if t):
-            results.append({"keyword_id": kw["id"], "term": kw["term"]})
-    return results
-```
-
-- [ ] **Step 4: Run test — expect PASS**
-
-Run: `pytest tests/test_matcher.py -v`
-Expected: 3 passed
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add backend/app/services/matcher.py backend/tests/test_matcher.py
-git commit -m "feat: keyword matcher with synonym support"
-```
-
----
-
-### Task 5: Relevance scorer (TDD)
-
-**Files:**
-- Create: `backend/app/services/relevance.py`, `backend/tests/test_relevance.py`
-
-- [ ] **Step 1: Write failing tests**
-
-```python
-from datetime import datetime, timezone, timedelta
-from app.services.relevance import compute_relevance_score
-
-def test_high_score_for_recent_title_match_dual_negative():
-    article = {
-        "title": "PPP RS enfrenta forte resistência",
-        "published_at": datetime.now(timezone.utc) - timedelta(hours=2),
-        "source_count": 2,
-    }
-    score = compute_relevance_score(
-        article,
-        keyword_term="ppp rs",
-        sentiment_institutional="negative",
-        sentiment_thematic="negative",
-    )
-    assert score >= 70
-
-def test_low_score_for_old_neutral():
-    article = {
-        "title": "Nota sobre administração",
-        "published_at": datetime.now(timezone.utc) - timedelta(days=3),
-        "source_count": 1,
-    }
-    score = compute_relevance_score(
-        article, keyword_term="reforma", sentiment_institutional="neutral", sentiment_thematic="neutral"
-    )
-    assert score < 40
+  it "matches synonym case-insensitively" do
+    kw = Keyword.new(id: 2, term: "ppp rs", synonyms: ["parcerias público-privadas"])
+    article = Article.new(title: "Estado avança em Parcerias Público-Privadas", content_snippet: "")
+    expect(described_class.call(article, [kw]).map(&:id)).to eq([2])
+  end
+end
 ```
 
 - [ ] **Step 2: Run — expect FAIL**
 
-- [ ] **Step 3: Implement `relevance.py`**
+Run: `bundle exec rspec spec/services/keyword_matcher_spec.rb`
+Expected: FAIL
 
-Weights from spec: recency 25%, keyword in title 25%, multi-source 25%, negative magnitude 25%. Return `int` 0–100.
+- [ ] **Step 3: Implement `KeywordMatcher`**
+
+```ruby
+class KeywordMatcher
+  def self.call(article, keywords)
+    haystack = "#{article.title} #{article.content_snippet}".downcase
+    keywords.select do |kw|
+      terms = [kw.term, *kw.synonyms].map(&:downcase)
+      terms.any? { |t| haystack.include?(t) }
+    end
+  end
+end
+```
 
 - [ ] **Step 4: Run — expect PASS**
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "feat: relevance scoring for Top 3 and impact alerts"
+git commit -m "feat: keyword matcher with synonym support"
 ```
 
 ---
 
-### Task 6: Aggregator + critical logic (TDD)
+### Task 5: RelevanceScorer + SnapshotAggregator (TDD)
 
 **Files:**
-- Create: `backend/app/services/aggregator.py`, `backend/tests/test_aggregator.py`
+- Create: `app/services/relevance_scorer.rb`, `app/services/snapshot_aggregator.rb`, specs
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Write specs for relevance and critical logic**
 
-```python
-from app.services.aggregator import compute_snapshot, is_critical
+Test: score >= 70 for recent dual-negative title match; `is_critical` true at >= 60% negative; high-impact trigger.
 
-def test_critical_volume_threshold():
-    analyses = [
-        {"sentiment_institutional": "negative", "sentiment_thematic": "neutral"},
-        {"sentiment_institutional": "negative", "sentiment_thematic": "negative"},
-        {"sentiment_institutional": "neutral", "sentiment_thematic": "negative"},
-        {"sentiment_institutional": "negative", "sentiment_thematic": "negative"},
-        {"sentiment_institutional": "positive", "sentiment_thematic": "positive"},
-    ]
-    snap = compute_snapshot(analyses)
-    assert snap["pct_negative"] >= 60.0
-    assert is_critical(analyses, high_impact=None) is True
+- [ ] **Step 2: Implement both services per spec sections 7–8**
 
-def test_critical_high_impact():
-    analyses = [{"sentiment_institutional": "negative", "sentiment_thematic": "negative", "relevance_score": 85}]
-    assert is_critical(analyses, high_impact=analyses[0]) is True
-
-def test_not_critical_below_threshold():
-    analyses = [{"sentiment_institutional": "neutral", "sentiment_thematic": "positive"}] * 5
-    assert is_critical(analyses, high_impact=None) is False
-```
-
-- [ ] **Step 2–4: Implement, test, pass**
-
-`compute_snapshot` returns `{pct_positive, pct_neutral, pct_negative, article_count}`.
-Critical if pct_negative >= 60 OR (relevance >= 70 AND both sentiments negative).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git commit -m "feat: snapshot aggregation and critical detection"
-```
-
----
-
-### Task 7: RSS collector
-
-**Files:**
-- Create: `backend/app/collectors/base.py`, `backend/app/collectors/rss.py`, `backend/app/collectors/registry.py`
-
-- [ ] **Step 1: Implement `base.py`** — abstract `Collector` with `fetch() -> list[RawArticle]`
-
-- [ ] **Step 2: Implement `rss.py`**
-
-```python
-import feedparser
-from dateutil import parser as dateparser
-
-def fetch_rss(url: str, source_slug: str) -> list[dict]:
-    feed = feedparser.parse(url)
-    articles = []
-    for entry in feed.entries[:30]:
-        articles.append({
-            "source_slug": source_slug,
-            "title": entry.get("title", "").strip(),
-            "url": entry.get("link", "").strip(),
-            "published_at": dateparser.parse(entry.get("published", "")) if entry.get("published") else None,
-            "content_snippet": entry.get("summary", "")[:500],
-        })
-    return [a for a in articles if a["title"] and a["url"]]
-```
-
-- [ ] **Step 3: Wire registry with RSS URLs** (validate manually once; store in seed `fetch_config`)
-
-- [ ] **Step 4: Manual smoke test**
-
-Run a one-off script fetching G1 RS RSS; expect ≥ 1 article with title + url
-
-- [ ] **Step 5: Commit**
-
-```bash
-git commit -m "feat: RSS collector for news sources"
-```
-
----
-
-### Task 8: DeepSeek sentiment + briefing services
-
-**Files:**
-- Create: `backend/app/services/sentiment.py`, `backend/app/services/briefing.py`, `backend/app/services/llm_client.py`
-
-- [ ] **Step 1: Implement `llm_client.py`**
-
-```python
-import os
-from openai import OpenAI
-
-def get_llm_client() -> OpenAI:
-    return OpenAI(
-        api_key=os.environ["DEEPSEEK_API_KEY"],
-        base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-    )
-
-def get_model() -> str:
-    return os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
-```
-
-- [ ] **Step 2: Implement `sentiment.py`**
-
-Use DeepSeek via OpenAI-compatible SDK with structured JSON output:
-
-```python
-async def analyze_dual_sentiment(title: str, keyword: str, snippet: str = "") -> dict:
-    # returns {"sentiment_institutional": "...", "sentiment_thematic": "..."}
-```
-
-Prompt (Portuguese) per spec section 6. Use `deepseek-v4-flash`. Retry 2× on failure; fallback both to `"neutral"`.
-
-- [ ] **Step 3: Implement `briefing.py`**
-
-```python
-async def generate_top3(db, slot: str) -> list[dict]:
-    # pick top 3 by relevance_score across all analyses in current run
-    # call DeepSeek for 2-3 sentence summary per article
-```
-
-- [ ] **Step 4: Add unit test with mocked LLM client**
-
-Mock `openai` client; verify JSON parsing and fallback.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git commit -m "feat: DeepSeek dual sentiment analysis and Top 3 briefing"
-```
-
----
-
-### Task 9: Pipeline orchestrator + CLI
-
-**Files:**
-- Create: `backend/app/services/pipeline.py`, `backend/scripts/run_pipeline.py`
-
-- [ ] **Step 1: Implement `pipeline.py`**
-
-```python
-def run_pipeline(slot: str) -> None:
-    # 1. load sources + keywords
-    # 2. collect all articles (dedupe by url)
-    # 3. match keywords
-    # 4. for each (article, keyword): analyze sentiment + relevance
-    # 5. per keyword: compute snapshot + is_critical → DailySnapshot
-    # 6. generate Top 3 → DailyBriefing
-    # 7. commit transaction
-```
-
-Slot: `"manha"` if hour < 12 else `"tarde"`.
-
-- [ ] **Step 2: Implement CLI `run_pipeline.py`**
-
-```python
-import sys
-from app.services.pipeline import run_pipeline
-
-if __name__ == "__main__":
-    slot = sys.argv[1] if len(sys.argv) > 1 else "manha"
-    run_pipeline(slot)
-```
-
-- [ ] **Step 3: End-to-end dry run**
-
-Run: `cd backend && python scripts/run_pipeline.py manha`
-Expected: articles + analyses + snapshots + briefing in DB (requires DEEPSEEK_API_KEY)
+- [ ] **Step 3: Run specs — expect PASS**
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git commit -m "feat: pipeline orchestrator with CLI entrypoint"
+git commit -m "feat: relevance scoring and snapshot aggregation with critical detection"
 ```
 
 ---
 
-### Task 10: FastAPI REST endpoints
+### Task 6: RSS scraper base + G1 RS scraper
 
 **Files:**
-- Create: `backend/app/schemas.py`, `backend/app/main.py`, `backend/app/api/*.py`, `backend/tests/test_api.py`
+- Create: `app/scrapers/base_scraper.rb`, `app/scrapers/g1_rs_scraper.rb`, `spec/scrapers/g1_rs_scraper_spec.rb`
 
-- [ ] **Step 1: Write failing API test**
+- [ ] **Step 1: Implement `BaseScraper`**
 
-```python
-from fastapi.testclient import TestClient
-from app.main import app
+```ruby
+class BaseScraper
+  def self.call(source)
+    new(source).fetch
+  end
 
-client = TestClient(app)
+  def initialize(source)
+    @source = source
+  end
 
-def test_health():
-    r = client.get("/api/health")
-    assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+  private
+
+  def http_client
+    @http_client ||= Faraday.new do |f|
+      f.headers["User-Agent"] = "HumorEcossistemaRS/1.0 (+https://github.com/deaballe/analisehumornoticias)"
+      f.options.timeout = 15
+    end
+  end
+end
 ```
 
-- [ ] **Step 2: Implement endpoints per spec section 10**
+- [ ] **Step 2: Implement `G1RsScraper` with Feedjira**
 
-- `GET /api/health`
-- `GET /api/briefing/latest`
-- `GET /api/snapshots/latest`
-- `GET /api/snapshots/history/{keyword_id}?days=7`
-- `GET /api/keywords/{id}/articles?date=YYYY-MM-DD`
-- `GET /api/meta/sources`
+Returns array of `{ title:, url:, published_at:, content_snippet: }`.
 
-Enable CORS for frontend origin.
+- [ ] **Step 3: VCR spec with recorded RSS fixture**
 
-- [ ] **Step 3: Run tests**
+- [ ] **Step 4: Commit**
 
-Run: `pytest tests/test_api.py -v`
-Expected: all pass
-
-- [ ] **Step 4: Create `backend/Dockerfile`**
-
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY pyproject.toml .
-RUN pip install -e ".[dev]"
-COPY . .
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```bash
+git commit -m "feat: base scraper and G1 RS RSS collector"
 ```
+
+---
+
+### Task 7: Remaining scrapers (6 sources)
+
+**Files:**
+- Create: `app/scrapers/zero_hora_scraper.rb`, `correio_do_povo_scraper.rb`, etc.
+- Create: `app/scrapers/registry.rb`
+
+- [ ] **Step 1: One scraper per source**
+
+- [ ] **Step 2: Registry maps `source.slug` → scraper class**
+
+```ruby
+module Scrapers
+  REGISTRY = {
+    "g1_rs" => G1RsScraper,
+    "zero_hora" => ZeroHoraScraper,
+    # ...
+  }.freeze
+end
+```
+
+- [ ] **Step 3: Smoke test — `NewsPipeline.new(slot: "manha").collect` returns articles**
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "feat: scrapers for all 7 news sources"
+```
+
+---
+
+### Task 8: DeepSeek SentimentAnalyzer + BriefingGenerator
+
+**Files:**
+- Create: `config/initializers/deepseek.rb`, `app/services/sentiment_analyzer.rb`, `app/services/briefing_generator.rb`, specs
+
+- [ ] **Step 1: DeepSeek initializer**
+
+```ruby
+# config/initializers/deepseek.rb
+DEEPSEEK_CLIENT = OpenAI::Client.new(
+  access_token: ENV.fetch("DEEPSEEK_API_KEY"),
+  uri_base: ENV.fetch("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+)
+```
+
+- [ ] **Step 2: Implement `SentimentAnalyzer`**
+
+Returns `{ sentiment_institutional:, sentiment_thematic: }` via JSON response. Retry 2×; fallback `neutral`.
+
+- [ ] **Step 3: Implement `BriefingGenerator`**
+
+Top 3 by relevance; 2–3 sentence summary per article via DeepSeek.
+
+- [ ] **Step 4: WebMock specs — no real API calls in CI**
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "feat: public REST API for dashboard"
+git commit -m "feat: DeepSeek sentiment analysis and Top 3 briefing generator"
 ```
 
 ---
 
-### Task 11: Next.js frontend — home dashboard
+### Task 9: NewsPipeline + NewsPipelineJob
 
 **Files:**
-- Create: `frontend/` with Next.js 14 App Router
+- Create: `app/services/news_pipeline.rb`, `app/jobs/news_pipeline_job.rb`
 
-- [ ] **Step 1: Scaffold frontend**
+- [ ] **Step 1: Implement `NewsPipeline#run`**
 
-Run:
-```bash
-npx create-next-app@14 frontend --typescript --tailwind --eslint --app --src-dir=false --import-alias "@/*"
+Orchestrates: collect → dedupe → match → analyze → score → snapshot → briefing.
+
+- [ ] **Step 2: Implement job**
+
+```ruby
+class NewsPipelineJob < ApplicationJob
+  queue_as :default
+  sidekiq_options retry: 3
+
+  def perform(slot)
+    NewsPipeline.new(slot: slot).run
+  end
+end
 ```
 
-- [ ] **Step 2: Create `frontend/lib/api.ts`**
+- [ ] **Step 3: Manual run**
 
-```typescript
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+Run: `rails runner "NewsPipelineJob.perform_now('manha')"`
+Expected: data in DB (requires DEEPSEEK_API_KEY)
 
-export async function getLatestBriefing() {
-  const r = await fetch(`${API}/api/briefing/latest`, { next: { revalidate: 300 } });
-  return r.json();
-}
-
-export async function getLatestSnapshots() {
-  const r = await fetch(`${API}/api/snapshots/latest`, { next: { revalidate: 300 } });
-  return r.json();
-}
-
-export async function getHistory(keywordId: number, days = 7) {
-  const r = await fetch(`${API}/api/snapshots/history/${keywordId}?days=${days}`, { next: { revalidate: 300 } });
-  return r.json();
-}
-```
-
-- [ ] **Step 3: Build components**
-
-- `TopBriefing.tsx` — 3 cards with summary, source, link, sentiment badges
-- `KeywordCard.tsx` — pct bars, red border if `is_critical`
-- `TrendChart.tsx` — Recharts `LineChart`, one line per keyword (or toggle)
-- `SentimentBadge.tsx` — institutional + thematic pills
-
-- [ ] **Step 4: Build `app/page.tsx`**
-
-Layout per spec section 11.1. Show last update timestamp. Grid of 18 keyword cards (responsive 2–4 cols).
-
-- [ ] **Step 5: Manual verify**
-
-Run: `docker compose up -d && cd frontend && npm run dev`
-Open: `http://localhost:3000`
-Expected: Top 3, cards, chart render with API data
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git commit -m "feat: public dashboard home with Top 3, cards, and 7-day chart"
+git commit -m "feat: news pipeline orchestrator and Sidekiq job"
+```
+
+---
+
+### Task 10: sidekiq-cron schedule
+
+**Files:**
+- Create: `config/schedule.yml`, update `config/initializers/sidekiq.rb`
+
+- [ ] **Step 1: Add schedule.yml per spec section 12**
+
+- [ ] **Step 2: Load cron in Sidekiq initializer**
+
+```ruby
+Sidekiq::Cron::Job.load_from_hash YAML.load_file(Rails.root.join("config/schedule.yml"))
+```
+
+- [ ] **Step 3: Verify in Sidekiq Web UI (dev)**
+
+Run sidekiq; confirm 2 cron entries visible
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "feat: schedule pipeline at 07h and 18h BRT via sidekiq-cron"
+```
+
+---
+
+### Task 11: Dashboard UI (home)
+
+**Files:**
+- Create: `app/controllers/dashboard_controller.rb`, `app/views/dashboard/index.html.erb`, partials
+
+- [ ] **Step 1: Routes**
+
+```ruby
+root "dashboard#index"
+resources :keywords, only: [:show]
+```
+
+- [ ] **Step 2: Controller loads latest briefing + snapshots + 7d history**
+
+- [ ] **Step 3: Partials**
+
+- `_top_briefing.html.erb` — Top 3 cards
+- `_keyword_card.html.erb` — red border if `is_critical`
+- `_trend_chart.html.erb` — Chartkick line chart
+
+- [ ] **Step 4: Verify in browser**
+
+Run: `bin/dev` → `http://localhost:3000`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat: public dashboard home with Top 3, keyword cards, and 7-day chart"
 ```
 
 ---
@@ -725,90 +480,61 @@ git commit -m "feat: public dashboard home with Top 3, cards, and 7-day chart"
 ### Task 12: Keyword detail page
 
 **Files:**
-- Create: `frontend/app/keywords/[id]/page.tsx`
+- Create: `app/controllers/keywords_controller.rb`, `app/views/keywords/show.html.erb`
 
-- [ ] **Step 1: Fetch keyword articles for today**
+- [ ] **Step 1: Show articles for keyword in latest slot**
 
-Call `GET /api/keywords/{id}/articles?date=...`
+Highlight high-impact (`relevance_score >= 70`)
 
-- [ ] **Step 2: Render list**
+- [ ] **Step 2: Sentiment badges partial**
 
-Each row: title (link), source, published_at, dual sentiment badges. Highlight if `relevance_score >= 70`.
-
-- [ ] **Step 3: Verify navigation**
-
-Click card on home → detail page loads
+- [ ] **Step 3: Request spec**
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git commit -m "feat: keyword detail page with article list"
+git commit -m "feat: keyword detail page with article list and sentiment badges"
 ```
 
 ---
 
-### Task 13: Cron scheduling (2×/day)
+### Task 13: Deploy config (Render)
 
 **Files:**
-- Create: `.github/workflows/pipeline.yml` OR document cron in `README.md`
+- Create: `render.yaml` or `Procfile`, update `README.md`
 
-- [ ] **Step 1: GitHub Actions workflow**
+- [ ] **Step 1: Procfile**
 
-```yaml
-name: Pipeline
-on:
-  schedule:
-    - cron: "0 10 * * *"   # 07:00 BRT = 10:00 UTC
-    - cron: "0 21 * * *"   # 18:00 BRT = 21:00 UTC
-  workflow_dispatch:
-jobs:
-  run:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install -e "./backend[dev]"
-      - run: python backend/scripts/run_pipeline.py manha
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_BASE_URL: https://api.deepseek.com
-          DEEPSEEK_MODEL: deepseek-v4-flash
+```
+web: bundle exec puma -C config/puma.rb
+worker: bundle exec sidekiq -C config/sidekiq.yml
 ```
 
-Adjust slot argument based on cron (manha vs tarde).
-
-- [ ] **Step 2: Document secrets setup in README**
+- [ ] **Step 2: Document env vars and Render setup in README**
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git commit -m "ci: schedule pipeline at 07h and 18h BRT"
+git commit -m "docs: add deploy config for web + Sidekiq worker"
 ```
 
 ---
 
-### Task 14: README + final verification
+### Task 14: README + full verification
 
-**Files:**
-- Modify: `README.md`
+- [ ] **Step 1: Run full spec suite**
 
-- [ ] **Step 1: Write README**
+Run: `bundle exec rspec`
+Expected: all pass
 
-Sections: overview, local dev (`docker compose up`, seed, pipeline, frontend), env vars, methodology link to spec, license.
+- [ ] **Step 2: Run pipeline locally end-to-end**
 
-- [ ] **Step 2: Run full test suite**
-
-Run: `cd backend && pytest -v`
-Expected: all tests pass
-
-- [ ] **Step 3: Run pipeline + load dashboard**
-
-Verify critical card turns red with fixture data (or real negative news cycle).
+- [ ] **Step 3: Verify MVP checklist from spec section 15**
 
 - [ ] **Step 4: Final commit**
 
 ```bash
-git commit -m "docs: add README and verify MVP checklist"
+git commit -m "docs: README and MVP verification"
 ```
 
 ---
@@ -817,31 +543,22 @@ git commit -m "docs: add README and verify MVP checklist"
 
 | Spec requirement | Task |
 |------------------|------|
-| Public, no auth | Task 10 (no auth middleware) |
-| 7 sources | Task 3, 7 |
-| 18 keywords | Task 3, 4 |
-| Dual sentiment | Task 8 |
-| Top 3 briefing | Task 8, 9, 11 |
-| Critical visual (≥60% or high impact) | Task 6, 11 |
-| 7-day chart | Task 10, 11 |
-| 2×/day updates | Task 9, 13 |
-| Error handling (partial source fail) | Task 9 |
-| Export JSON (phase 1.5) | Deferred — add `GET /api/export/snapshots.json` in follow-up task |
-
-## Plan Self-Review
-
-- No TBD/TODO placeholders in task steps
-- Types consistent: `sentiment_institutional`, `sentiment_thematic`, `is_critical`, `slot` (`manha`|`tarde`)
-- All 18 keywords included in seed
-- Critical logic matches spec (60% + impact ≥70 dual negative)
+| Rails monolito | Task 1 |
+| Sidekiq + sidekiq-cron 2×/dia | Task 9, 10 |
+| 7 scrapers | Task 6, 7 |
+| 18 keywords seed | Task 3 |
+| DeepSeek dual sentiment | Task 8 |
+| Top 3 briefing | Task 8, 9 |
+| Critical visual (≥60% or high impact) | Task 5, 11 |
+| 7-day chart (Chartkick) | Task 11 |
+| Public routes, no auth | Task 11, 12 |
+| Deploy web + worker | Task 13 |
 
 ---
 
-**Plan complete.** Saved to `docs/superpowers/plans/2026-06-20-painel-humor-ecossistema-rs.md`.
+**Plan complete.** Two execution options:
 
-**Two execution options:**
+1. **Subagent-Driven (recommended)** — fresh subagent per task
+2. **Inline Execution** — task-by-task in this session
 
-1. **Subagent-Driven (recommended)** — fresh subagent per task, review between tasks
-2. **Inline Execution** — implement task-by-task in this session with checkpoints
-
-Which approach do you prefer?
+Which approach?
