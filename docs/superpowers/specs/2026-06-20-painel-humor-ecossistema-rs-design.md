@@ -43,6 +43,7 @@ Não é ferramenta institucional: sem autenticação, sem alertas por e-mail/Wha
 | Histórico | Snapshot do dia + gráfico linha 7 dias por keyword |
 | Atualização | 2×/dia — 07:00 e 18:00 (horário de Brasília) |
 | Infra | Nuvem pública; LLM externo permitido |
+| LLM | **DeepSeek API** (`deepseek-v4-flash`) |
 
 ---
 
@@ -87,14 +88,14 @@ flowchart TB
 | Camada | Tecnologia |
 |--------|------------|
 | Coleta | Python 3.12, `feedparser`, `httpx`, BeautifulSoup4 |
-| NLP / resumos | OpenAI API (GPT-4o-mini ou equivalente) |
+| NLP / resumos | **DeepSeek API** (`deepseek-v4-flash`; compatível OpenAI SDK) |
 | API | FastAPI |
 | Banco | PostgreSQL 16 |
 | Frontend | Next.js 14, Tailwind CSS, Recharts |
 | Agendamento | Cron no VPS ou GitHub Actions |
 | Deploy | Railway / Render / AWS Lightsail |
 
-**Custo operacional estimado:** US$ 15–40/mês (hosting + ~2 runs/dia × análise LLM).
+**Custo operacional estimado:** US$ 5–15/mês (hosting + ~2 runs/dia × DeepSeek; LLM bem mais barato que OpenAI).
 
 ---
 
@@ -167,6 +168,45 @@ Cada par `(artigo, keyword)` recebe duas classificações:
 Valores: `positive` | `neutral` | `negative`.
 
 Prompt LLM estruturado (JSON output) com manchete + keyword + contexto opcional (lead de 1 parágrafo se disponível).
+
+### Provedor: DeepSeek API
+
+| Parâmetro | Valor |
+|-----------|-------|
+| Endpoint | `https://api.deepseek.com` |
+| Modelo (MVP) | `deepseek-v4-flash` — rápido e barato para classificação + resumos |
+| Modelo (opcional) | `deepseek-v4-pro` — maior qualidade em resumos executivos, se necessário |
+| SDK | OpenAI-compatible (`openai` Python / `ruby-openai` Ruby) com `base_url` apontando para DeepSeek |
+| Env var | `DEEPSEEK_API_KEY` |
+| Output | `response_format: { type: "json_object" }` para sentimento dual |
+
+Exemplo de configuração (Python):
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["DEEPSEEK_API_KEY"],
+    base_url="https://api.deepseek.com",
+)
+
+response = client.chat.completions.create(
+    model="deepseek-v4-flash",
+    response_format={"type": "json_object"},
+    messages=[...],
+)
+```
+
+Exemplo de configuração (Ruby):
+
+```ruby
+client = OpenAI::Client.new(
+  access_token: ENV["DEEPSEEK_API_KEY"],
+  uri_base: "https://api.deepseek.com"
+)
+```
+
+**Nota:** aliases legados `deepseek-chat` e `deepseek-reasoner` serão descontinuados em jul/2026 — usar apenas `deepseek-v4-flash` ou `deepseek-v4-pro`.
 
 ---
 
@@ -365,7 +405,7 @@ Entre runs, frontend exibe último snapshot disponível (sem polling).
 - User-Agent identificável com URL do projeto  
 - Rate limit nos coletores (≥ 2 s entre requests por domínio)  
 - Não armazenar conteúdo integral paywalled — apenas manchete + snippet público  
-- API keys em variáveis de ambiente  
+- `DEEPSEEK_API_KEY` em variáveis de ambiente (nunca no código)  
 
 ---
 

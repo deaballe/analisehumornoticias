@@ -6,7 +6,7 @@
 
 **Architecture:** Python pipeline (collect → match → LLM analyze → aggregate) writes to PostgreSQL; FastAPI serves a public REST API; Next.js renders the dashboard. Cron triggers at 07:00 and 18:00 BRT.
 
-**Tech Stack:** Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL 16, OpenAI API, pytest; Next.js 14, Tailwind, Recharts; Docker Compose.
+**Tech Stack:** Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL 16, DeepSeek API (OpenAI-compatible SDK), pytest; Next.js 14, Tailwind, Recharts; Docker Compose.
 
 **Spec:** `docs/superpowers/specs/2026-06-20-painel-humor-ecossistema-rs-design.md`
 
@@ -17,7 +17,7 @@
 ```
 analisehumornoticias/
 ├── docker-compose.yml          # postgres + api + (optional) frontend
-├── .env.example                # DATABASE_URL, OPENAI_API_KEY
+├── .env.example                # DATABASE_URL, DEEPSEEK_API_KEY
 ├── backend/
 │   ├── pyproject.toml
 │   ├── alembic.ini
@@ -122,7 +122,9 @@ node_modules/
 
 ```bash
 DATABASE_URL=postgresql+psycopg://humor:humor@localhost:5432/humor_rs
-OPENAI_API_KEY=sk-...
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
 API_HOST=0.0.0.0
 API_PORT=8000
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -210,7 +212,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://humor:humor@localhost:5432/humor_rs"
-    openai_api_key: str = ""
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-v4-flash"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
@@ -510,38 +514,54 @@ git commit -m "feat: RSS collector for news sources"
 
 ---
 
-### Task 8: LLM sentiment + briefing services
+### Task 8: DeepSeek sentiment + briefing services
 
 **Files:**
-- Create: `backend/app/services/sentiment.py`, `backend/app/services/briefing.py`
+- Create: `backend/app/services/sentiment.py`, `backend/app/services/briefing.py`, `backend/app/services/llm_client.py`
 
-- [ ] **Step 1: Implement `sentiment.py`**
+- [ ] **Step 1: Implement `llm_client.py`**
 
-Use OpenAI structured JSON output:
+```python
+import os
+from openai import OpenAI
+
+def get_llm_client() -> OpenAI:
+    return OpenAI(
+        api_key=os.environ["DEEPSEEK_API_KEY"],
+        base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+    )
+
+def get_model() -> str:
+    return os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+```
+
+- [ ] **Step 2: Implement `sentiment.py`**
+
+Use DeepSeek via OpenAI-compatible SDK with structured JSON output:
 
 ```python
 async def analyze_dual_sentiment(title: str, keyword: str, snippet: str = "") -> dict:
     # returns {"sentiment_institutional": "...", "sentiment_thematic": "..."}
 ```
 
-Prompt (Portuguese) per spec section 6. Use `gpt-4o-mini`. Retry 2× on failure; fallback both to `"neutral"`.
+Prompt (Portuguese) per spec section 6. Use `deepseek-v4-flash`. Retry 2× on failure; fallback both to `"neutral"`.
 
-- [ ] **Step 2: Implement `briefing.py`**
+- [ ] **Step 3: Implement `briefing.py`**
 
 ```python
 async def generate_top3(db, slot: str) -> list[dict]:
     # pick top 3 by relevance_score across all analyses in current run
-    # call LLM for 2-3 sentence summary per article
+    # call DeepSeek for 2-3 sentence summary per article
 ```
 
-- [ ] **Step 3: Add unit test with mocked OpenAI**
+- [ ] **Step 4: Add unit test with mocked LLM client**
 
 Mock `openai` client; verify JSON parsing and fallback.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "feat: LLM dual sentiment analysis and Top 3 briefing"
+git commit -m "feat: DeepSeek dual sentiment analysis and Top 3 briefing"
 ```
 
 ---
@@ -580,7 +600,7 @@ if __name__ == "__main__":
 - [ ] **Step 3: End-to-end dry run**
 
 Run: `cd backend && python scripts/run_pipeline.py manha`
-Expected: articles + analyses + snapshots + briefing in DB (requires OPENAI_API_KEY)
+Expected: articles + analyses + snapshots + briefing in DB (requires DEEPSEEK_API_KEY)
 
 - [ ] **Step 4: Commit**
 
@@ -750,7 +770,9 @@ jobs:
       - run: python backend/scripts/run_pipeline.py manha
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: https://api.deepseek.com
+          DEEPSEEK_MODEL: deepseek-v4-flash
 ```
 
 Adjust slot argument based on cron (manha vs tarde).
