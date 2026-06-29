@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOST="${1:-${KAMAL_SERVER_IP:-}}"
+DOMAIN="${2:-labs.andreaballe.com}"
+
+if [[ -z "${HOST}" ]]; then
+  echo "Usage: KAMAL_SERVER_IP=1.2.3.4 $0" >&2
+  echo "   or: $0 YOUR_SERVER_IP [domain]" >&2
+  exit 1
+fi
+
+ssh "root@${HOST}" bash -s -- "${DOMAIN}" <<'EOF'
+set -euo pipefail
+DOMAIN="$1"
+
+docker network inspect kamal >/dev/null 2>&1 || docker network create kamal
+docker pull nginx:alpine
+docker rm -f labs-root >/dev/null 2>&1 || true
+docker run -d --name labs-root --network kamal --restart unless-stopped nginx:alpine
+
+TARGET="$(docker inspect -f '{{.NetworkSettings.Networks.kamal.IPAddress}}' labs-root):80"
+
+docker exec kamal-proxy kamal-proxy deploy labs-root \
+  --target="${TARGET}" \
+  --host="${DOMAIN}" \
+  --tls \
+  --health-check-path=/
+
+echo "TLS at https://${DOMAIN}/ is ready. Path-prefixed apps inherit this certificate."
+EOF

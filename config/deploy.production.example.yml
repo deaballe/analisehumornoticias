@@ -1,0 +1,33 @@
+# Local production overlay — copy to deploy.production.yml (gitignored) and edit.
+#
+#   cp config/deploy.production.example.yml config/deploy.production.yml
+#
+# Deploy:
+#   export KAMAL_REGISTRY_PASSWORD=ghp_...
+#   export POSTGRES_PASSWORD=...
+#   export DEEPSEEK_API_KEY=sk_...
+#   bin/kamal deploy -d production
+#
+# Secrets: .kamal/secrets-common (+ optional .kamal/secrets.production)
+
+servers:
+  web:
+    - YOUR_SERVER_IP
+  job:
+    hosts:
+      - YOUR_SERVER_IP
+
+builder:
+  remote: ssh://root@YOUR_SERVER_IP
+
+ssh:
+  user: root
+  keys:
+    - ~/.ssh/id_ed25519
+  keys_only: true
+
+accessories:
+  db:
+    host: YOUR_SERVER_IP
+  redis:
+    host: YOUR_SERVER_IP

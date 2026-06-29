@@ -33,6 +33,9 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Kamal: server-specific deploy overlay (IPs, SSH paths, builder host).
+/config/deploy.production.yml
+
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
