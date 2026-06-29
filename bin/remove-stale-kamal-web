@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Removes the old Kamal web proxy entry (pre -d production) and its containers.
+# Does not touch labs-root, production containers, or accessories.
+#
+#   KAMAL_SERVER_IP=1.2.3.4 bin/remove-stale-kamal-web
+
+HOST="${1:-${KAMAL_SERVER_IP:-}}"
+
+if [[ -z "${HOST}" ]]; then
+  echo "Usage: KAMAL_SERVER_IP=1.2.3.4 $0" >&2
+  exit 1
+fi
+
+ssh "root@${HOST}" bash -s <<'EOF'
+set -euo pipefail
+
+echo "Removing stale proxy service analisehumornoticias-web (if present)..."
+docker exec kamal-proxy kamal-proxy remove analisehumornoticias-web 2>/dev/null || true
+
+echo "Stopping containers without destination=production..."
+for id in $(docker ps -aq --filter label=service=analisehumornoticias); do
+  dest=$(docker inspect -f '{{index .Config.Labels "destination"}}' "$id" 2>/dev/null || true)
+  if [[ -z "${dest}" ]]; then
+    name=$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')
+    echo "  removing ${name}"
+    docker rm -f "$id" >/dev/null
+  fi
+done
+
+echo "Proxy services:"
+docker exec kamal-proxy kamal-proxy list
+EOF

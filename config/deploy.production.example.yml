@@ -6,6 +6,8 @@
 #   export KAMAL_REGISTRY_PASSWORD=ghp_...
 #   export POSTGRES_PASSWORD=...
 #   export DEEPSEEK_API_KEY=sk_...
+#   export SIDEKIQ_WEB_USER=admin
+#   export SIDEKIQ_WEB_PASSWORD=$(openssl rand -base64 24)
 #   bin/kamal deploy -d production
 #
 # Secrets: .kamal/secrets-common (+ optional .kamal/secrets.production)
@@ -29,5 +31,20 @@ ssh:
 accessories:
   db:
     host: YOUR_SERVER_IP
+    image: postgres:18
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_USER: analisehumornoticias
+        POSTGRES_DB: analisehumornoticias_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql
+
   redis:
     host: YOUR_SERVER_IP
+    image: valkey/valkey:8
+    port: "127.0.0.1:6379:6379"
+    directories:
+      - data:/data
