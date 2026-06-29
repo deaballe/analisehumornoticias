@@ -1,0 +1,9 @@
+news_pipeline_morning:
+  cron: "0 10 * * *"
+  class: NewsPipelineJob
+  args: ["manha"]
+
+news_pipeline_evening:
+  cron: "0 21 * * *"
+  class: NewsPipelineJob
+  args: ["tarde"]

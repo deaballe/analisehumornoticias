@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: humor-rs-web
+    runtime: ruby
+    buildCommand: bundle install && bundle exec rails assets:precompile
+    startCommand: bundle exec puma -C config/puma.rb
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: humor-rs-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: humor-rs-redis
+          property: connectionString
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+
+  - type: worker
+    name: humor-rs-worker
+    runtime: ruby
+    buildCommand: bundle install
+    startCommand: bundle exec sidekiq -C config/sidekiq.yml
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: humor-rs-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: humor-rs-redis
+          property: connectionString
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+
+databases:
+  - name: humor-rs-db
+    plan: free
+
+  - name: humor-rs-redis
+    plan: free
+    type: redis

@@ -1,0 +1,24 @@
+<% content_for :title, "Humor do Ecossistema RS" %>
+
+<div class="space-y-8">
+  <header class="flex flex-col gap-2 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">Humor do Ecossistema RS</h1>
+      <p class="text-slate-600">Monitoramento de manchetes sobre gestão pública gaúcha</p>
+    </div>
+    <p class="text-sm text-slate-500">Atualizado: <%= @updated_at %></p>
+  </header>
+
+  <%= render "top_briefing", briefing: @briefing %>
+
+  <section>
+    <h2 class="mb-4 text-xl font-semibold">Temas monitorados</h2>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <% @snapshots.each do |snapshot| %>
+        <%= render "keyword_card", snapshot: snapshot %>
+      <% end %>
+    </div>
+  </section>
+
+  <%= render "trend_chart", trend_data: @trend_data %>
+</div>
