@@ -1,5 +1,8 @@
-# Rendered in CI from this template (see .github/workflows/deploy.yml).
+# Rendered in CI from this template (see .github/workflows/ci.yml).
 # Locally, copy deploy.production.example.yml to deploy.production.yml instead.
+#
+# CI builds the image on the GitHub runner (no builder.remote).
+# Local deploys use deploy.production.example.yml with builder.remote.
 
 servers:
   web:
@@ -8,11 +11,10 @@ servers:
     hosts:
       - __KAMAL_SERVER_IP__
 
-builder:
-  remote: ssh://root@__KAMAL_SERVER_IP__
-
 ssh:
   user: root
+  keys:
+    - ~/.ssh/id_ed25519
   keys_only: true
 
 accessories:
