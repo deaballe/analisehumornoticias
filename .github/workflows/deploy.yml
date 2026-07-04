@@ -1,0 +1,53 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    env:
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SIDEKIQ_WEB_USER: ${{ secrets.SIDEKIQ_WEB_USER }}
+      SIDEKIQ_WEB_PASSWORD: ${{ secrets.SIDEKIQ_WEB_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.KAMAL_SSH_PRIVATE_KEY }}
+
+      - name: Trust deploy host
+        run: ssh-keyscan -H "${{ secrets.KAMAL_SERVER_IP }}" >> ~/.ssh/known_hosts
+
+      - name: Prepare Kamal config
+        env:
+          KAMAL_SERVER_IP: ${{ secrets.KAMAL_SERVER_IP }}
+        run: |
+          printf '%s' "${{ secrets.RAILS_MASTER_KEY }}" > config/master.key
+          chmod 600 config/master.key
+          sed "s/__KAMAL_SERVER_IP__/${KAMAL_SERVER_IP}/g" config/deploy.production.template.yml > config/deploy.production.yml
+
+      - name: Deploy with Kamal
+        run: bin/kamal deploy -d production

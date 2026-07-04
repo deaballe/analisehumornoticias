@@ -1,0 +1,37 @@
+# Rendered in CI from this template (see .github/workflows/deploy.yml).
+# Locally, copy deploy.production.example.yml to deploy.production.yml instead.
+
+servers:
+  web:
+    - __KAMAL_SERVER_IP__
+  job:
+    hosts:
+      - __KAMAL_SERVER_IP__
+
+builder:
+  remote: ssh://root@__KAMAL_SERVER_IP__
+
+ssh:
+  user: root
+  keys_only: true
+
+accessories:
+  db:
+    host: __KAMAL_SERVER_IP__
+    image: postgres:18
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_USER: analisehumornoticias
+        POSTGRES_DB: analisehumornoticias_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql
+
+  redis:
+    host: __KAMAL_SERVER_IP__
+    image: valkey/valkey:8
+    port: "127.0.0.1:6379:6379"
+    directories:
+      - data:/data
