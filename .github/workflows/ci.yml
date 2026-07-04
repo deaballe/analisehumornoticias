@@ -65,3 +65,58 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  deploy:
+    needs: [scan_ruby, scan_js, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+
+    env:
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SIDEKIQ_WEB_USER: ${{ secrets.SIDEKIQ_WEB_USER }}
+      SIDEKIQ_WEB_PASSWORD: ${{ secrets.SIDEKIQ_WEB_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.KAMAL_SSH_PRIVATE_KEY }}
+          KAMAL_SERVER_IP: ${{ secrets.KAMAL_SERVER_IP }}
+        run: |
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "::error::KAMAL_SSH_PRIVATE_KEY secret is empty. Paste the full private key (including BEGIN/END lines)."
+            exit 1
+          fi
+          if [ -z "$KAMAL_SERVER_IP" ]; then
+            echo "::error::KAMAL_SERVER_IP secret is empty."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_ed25519
+          ssh-keyscan -H "$KAMAL_SERVER_IP" >> ~/.ssh/known_hosts
+
+      - name: Prepare Kamal config
+        env:
+          KAMAL_SERVER_IP: ${{ secrets.KAMAL_SERVER_IP }}
+        run: |
+          printf '%s' "${{ secrets.RAILS_MASTER_KEY }}" > config/master.key
+          chmod 600 config/master.key
+          sed "s/__KAMAL_SERVER_IP__/${KAMAL_SERVER_IP}/g" config/deploy.production.template.yml > config/deploy.production.yml
+
+      - name: Deploy with Kamal
+        run: bin/kamal deploy -d production
+
