@@ -1,5 +1,5 @@
 class AgenciaBrasilScraper < BaseScraper
-  RS_PATTERN = /rio grande do sul|\brs\b/i
+  RS_PATTERN = /rio grande do sul|\brs\b|porto alegre|\bgau[cú]ch[oa]s?\b/i
 
   def fetch
     parse_rss(@source.fetch_config.fetch("url")).select do |item|

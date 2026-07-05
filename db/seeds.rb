@@ -1,22 +1,22 @@
 KEYWORDS = [
-  [ "acordo de resultados", [] ],
-  [ "projetos estratégicos", [] ],
-  [ "plano plurianual", %w[ppa] ],
-  [ "ppa rs", %w[ppa plano\ plurianual\ rs] ],
-  [ "modernização administrativa", [] ],
-  [ "reforma administrativa", [] ],
-  [ "eficiência na gestão", %w[eficiência gestão\ eficiente] ],
-  [ "governo digital", [] ],
-  [ "rs.gov.br", %w[portal\ rs\ gov] ],
-  [ "inovação no setor público", [] ],
-  [ "funcionalismo público", [] ],
-  [ "servidores estaduais", [] ],
-  [ "concurso público rs", %w[concurso\ público concurso\ rs] ],
-  [ "patrimônio do estado", [] ],
-  [ "parcerias público-privadas", %w[ppp parceria\ público-privada] ],
-  [ "ppp rs", %w[ppp parcerias\ público-privadas] ],
-  [ "concessões públicas", [] ],
-  [ "spgg", %w[secretaria\ de\ planejamento\ governança\ e\ gestão] ]
+  [ "acordo de resultados", %w[acordos\ de\ resultados acordo\ de\ resultados\ rs] ],
+  [ "projetos estratégicos", %w[projeto\ estratégico projetos\ estrategicos] ],
+  [ "plano plurianual", %w[ppa plano\ plurianual orçamento\ plurianual] ],
+  [ "ppa rs", %w[ppa plano\ plurianual\ rs orçamento\ do\ estado fundo\ constitucional] ],
+  [ "modernização administrativa", %w[modernização\ do\ estado modernizacao\ administrativa transformação\ administrativa] ],
+  [ "reforma administrativa", %w[reforma\ do\ estado reforma\ do\ funcionalismo reestruturação\ administrativa] ],
+  [ "eficiência na gestão", %w[eficiência gestão\ eficiente eficiencia\ na\ gestao gestão\ pública] ],
+  [ "governo digital", %w[gov.br transformação\ digital governo\ eletrônico governo\ eletronico digitalização] ],
+  [ "rs.gov.br", %w[portal\ rs\ gov estado.rs.gov.br estado.rs.gov] ],
+  [ "inovação no setor público", %w[inovação\ pública inovacao\ no\ setor\ publico] ],
+  [ "funcionalismo público", %w[funcionalismo servidor\ público servidores\ públicos rpps previdência\ própria] ],
+  [ "servidores estaduais", %w[servidor\ estadual servidores\ do\ estado funcionário\ público\ estadual servidores] ],
+  [ "concurso público rs", %w[concurso\ público concurso\ rs concurso\ público\ rs concurso\ estadual] ],
+  [ "patrimônio do estado", %w[patrimônio\ público patrimonio\ do\ estado bens\ públicos] ],
+  [ "parcerias público-privadas", %w[ppp parceria\ público-privada parcerias\ publico-privadas] ],
+  [ "ppp rs", %w[ppp parcerias\ público-privadas parceria\ público-privada\ rs] ],
+  [ "concessões públicas", %w[concessão\ pública concessoes\ publicas privatização] ],
+  [ "spgg", %w[secretaria\ de\ planejamento\ governança\ e\ gestão secretaria\ de\ planejamento planejamento\ governança\ e\ gestão] ]
 ].freeze
 
 sources = [
@@ -32,7 +32,7 @@ sources = [
     name: "Zero Hora",
     base_url: "https://gauchazh.clicrbs.com.br/",
     fetch_type: "scrape",
-    fetch_config: { url: "https://gauchazh.clicrbs.com.br/porto-alegre/ultimas-noticias/" }
+    fetch_config: { url: "https://gauchazh.clicrbs.com.br/pioneiro/politica/ultimas-noticias/" }
   },
   {
     slug: "correio_do_povo",
@@ -49,11 +49,23 @@ sources = [
     fetch_config: { url: "https://gauchazh.clicrbs.com.br/politica/ultimas-noticias/" }
   },
   {
-    slug: "anp",
-    name: "ANP",
-    base_url: "https://anp.com.br/",
+    slug: "jornal_do_comercio",
+    name: "Jornal do Comércio",
+    base_url: "https://www.jornaldocomercio.com/",
     fetch_type: "rss",
-    fetch_config: { url: "https://anp.com.br/feed/" }
+    fetch_config: {
+      urls: [
+        "https://www.jornaldocomercio.com/_conteudo/politica/rss.xml",
+        "https://www.jornaldocomercio.com/_conteudo/economia/rss.xml"
+      ]
+    }
+  },
+  {
+    slug: "radio_guaiba",
+    name: "Rádio Guaíba",
+    base_url: "https://guaiba.com.br/",
+    fetch_type: "rss",
+    fetch_config: { url: "https://guaiba.com.br/feed/" }
   },
   {
     slug: "sul21",
@@ -77,10 +89,14 @@ sources.each do |attrs|
   source.save!
 end
 
+if (anp = Source.find_by(slug: "anp")) && anp.articles.none?
+  anp.destroy
+end
+
 KEYWORDS.each do |term, synonyms|
-  Keyword.find_or_create_by!(term: term) do |keyword|
-    keyword.synonyms = synonyms
-  end
+  keyword = Keyword.find_or_initialize_by(term: term)
+  keyword.synonyms = synonyms
+  keyword.save!
 end
 
 puts "Seeded #{Source.count} sources and #{Keyword.count} keywords"

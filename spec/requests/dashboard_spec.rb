@@ -28,7 +28,9 @@ RSpec.describe "Keywords", type: :request do
   it "shows analyses updated in the current cycle even when the article is older" do
     keyword = create_test_keyword(term: "keyword ciclo teste")
     source = create_test_source
-    briefing = DailyBriefing.create!(briefing_date: Time.zone.today, slot: "manha", items: [])
+    briefing = DailyBriefing.find_or_create_by!(briefing_date: Time.zone.today, slot: "manha") do |record|
+      record.items = []
+    end
     article = Article.create!(
       source: source,
       title: "Matéria antiga reanalisada",

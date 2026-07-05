@@ -6,7 +6,9 @@ class ScraperRegistry
     "gaucha_zh" => GauchaZhScraper,
     "anp" => AnpScraper,
     "sul21" => Sul21Scraper,
-    "agencia_brasil" => AgenciaBrasilScraper
+    "agencia_brasil" => AgenciaBrasilScraper,
+    "jornal_do_comercio" => JornalDoComercioScraper,
+    "radio_guaiba" => RadioGuaibaScraper
   }.freeze
 
   def self.for(source)

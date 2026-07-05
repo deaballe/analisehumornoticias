@@ -73,7 +73,7 @@ Agendamento automático via `config/schedule.yml`:
 
 ## Fontes monitoradas
 
-G1 RS, Zero Hora, Correio do Povo, Gaúcha ZH, ANP, Sul21, Agência Brasil (filtro RS).
+G1 RS, Zero Hora, Correio do Povo, Gaúcha ZH, Jornal do Comércio, Rádio Guaíba, Sul21, Agência Brasil (filtro RS).
 
 ## Licença
 
