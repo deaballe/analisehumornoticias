@@ -2,14 +2,15 @@
 #
 # Secrets go in Dokploy Project → Environment (written to .env). Do not commit values.
 # Domains: Dokploy Compose → Domains tab → web service, container port 80, HTTPS + Let's Encrypt.
-# Host: humor-noticias.labs.andreaballe.com (path / — no relative URL root)
+# Host: labs.andreaballe.com (path /humor-noticias)
 
 x-app-environment: &app-environment
   RAILS_ENV: production
   RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
   DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   REDIS_URL: redis://redis:6379/0
-  APP_HOST: ${APP_HOST:-humor-noticias.labs.andreaballe.com}
+  APP_HOST: ${APP_HOST:-labs.andreaballe.com}
+  RAILS_RELATIVE_URL_ROOT: ${RAILS_RELATIVE_URL_ROOT:-/humor-noticias}
   DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
   DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
   DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}

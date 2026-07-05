@@ -58,9 +58,9 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  config.action_mailer.default_url_options = {
-    host: ENV.fetch("APP_HOST", "humor-noticias.labs.andreaballe.com")
-  }
+  default_url_options = { host: ENV.fetch("APP_HOST", "labs.andreaballe.com") }
+  default_url_options[:script_name] = config.relative_url_root if config.relative_url_root.present?
+  config.action_mailer.default_url_options = default_url_options
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {
