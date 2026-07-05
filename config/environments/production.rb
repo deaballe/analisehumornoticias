@@ -30,7 +30,7 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
-  healthcheck = ->(request) { request.path == "/up" }
+  healthcheck = ->(request) { request.path_info == "/up" }
 
   config.host_authorization = { exclude: healthcheck }
   config.ssl_options = { redirect: { exclude: healthcheck } }
