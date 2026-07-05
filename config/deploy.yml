@@ -12,7 +12,7 @@ servers:
 
 proxy:
   host: labs.andreaballe.com
-  path_prefix: /analise-humor-noticias
+  path_prefix: /humor-noticias
   forward_headers: true
   healthcheck:
     path: /up
@@ -32,7 +32,7 @@ env:
     - SIDEKIQ_WEB_USER
     - SIDEKIQ_WEB_PASSWORD
   clear:
-    RAILS_RELATIVE_URL_ROOT: /analise-humor-noticias
+    RAILS_RELATIVE_URL_ROOT: /humor-noticias
     DEEPSEEK_BASE_URL: https://api.deepseek.com
     DEEPSEEK_MODEL: deepseek-chat
 

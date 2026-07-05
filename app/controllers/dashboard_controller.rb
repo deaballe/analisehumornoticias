@@ -16,12 +16,28 @@ class DashboardController < ApplicationController
   end
 
   def snapshots_for(latest_slot)
-    return DailySnapshot.none unless latest_slot
+    keywords = Keyword.order(:term)
 
-    DailySnapshot.includes(:keyword)
-                 .where(snapshot_date: latest_slot[:date], slot: latest_slot[:slot])
-                 .order("keywords.term")
-                 .joins(:keyword)
+    unless latest_slot
+      return keywords.map { |keyword| placeholder_snapshot(keyword) }
+    end
+
+    snapshots_by_keyword = DailySnapshot.includes(:keyword)
+                                        .where(snapshot_date: latest_slot[:date], slot: latest_slot[:slot])
+                                        .index_by(&:keyword_id)
+
+    keywords.map { |keyword| snapshots_by_keyword[keyword.id] || placeholder_snapshot(keyword) }
+  end
+
+  def placeholder_snapshot(keyword)
+    DailySnapshot.new(
+      keyword: keyword,
+      pct_positive: 0,
+      pct_neutral: 0,
+      pct_negative: 0,
+      article_count: 0,
+      is_critical: false
+    )
   end
 
   def trend_data

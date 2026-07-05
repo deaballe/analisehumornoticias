@@ -1,5 +1,3 @@
-return unless Rails.env.development?
-
 KEYWORDS = [
   [ "acordo de resultados", [] ],
   [ "projetos estratégicos", [] ],

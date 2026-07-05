@@ -24,7 +24,7 @@ class KeywordsController < ApplicationController
     ArticleAnalysis.includes(article: :source)
                    .joins(:article)
                    .where(keyword: @keyword)
-                   .where("articles.created_at >= ?", cycle_start)
+                   .where("article_analyses.updated_at >= ?", cycle_start)
                    .order(relevance_score: :desc)
   end
 
