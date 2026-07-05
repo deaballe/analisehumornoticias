@@ -30,9 +30,7 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
-  # kamal-proxy health checks hit the container by hostname, not the public host.
-  # Use path_info: RelativeUrlRoot middleware prepends SCRIPT_NAME, so request.path != "/up".
-  healthcheck = ->(request) { request.path_info == "/up" }
+  healthcheck = ->(request) { request.path == "/up" }
 
   config.host_authorization = { exclude: healthcheck }
   config.ssl_options = { redirect: { exclude: healthcheck } }
@@ -60,12 +58,8 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.relative_url_root = ENV.fetch("RAILS_RELATIVE_URL_ROOT", "/analise-humor-noticias")
-
   config.action_mailer.default_url_options = {
-    host: "labs.andreaballe.com",
-    script_name: config.relative_url_root
+    host: ENV.fetch("APP_HOST", "humor-noticias.labs.andreaballe.com")
   }
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
@@ -87,7 +81,15 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
-  config.hosts = [ "labs.andreaballe.com" ]
+  config.hosts = [
+    "humor-noticias.labs.andreaballe.com",
+    "labs.andreaballe.com"
+  ]
+
+  if ENV["ALLOW_LOCAL_HOST"] == "true"
+    config.hosts += %w[localhost 127.0.0.1]
+    config.force_ssl = false
+  end
 
   # Prevent health checks from clogging up the logs.
   config.silence_healthcheck_path = "/up"

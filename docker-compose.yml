@@ -1,0 +1,75 @@
+# Dokploy / Docker Compose — analisehumornoticias
+#
+# Secrets go in Dokploy Project → Environment (written to .env). Do not commit values.
+# Domains: Dokploy Compose → Domains tab → web service, container port 80, HTTPS + Let's Encrypt.
+# Host: humor-noticias.labs.andreaballe.com (path / — no relative URL root)
+
+x-app-environment: &app-environment
+  RAILS_ENV: production
+  RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  APP_HOST: ${APP_HOST:-humor-noticias.labs.andreaballe.com}
+  DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+  DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+  SIDEKIQ_WEB_USER: ${SIDEKIQ_WEB_USER}
+  SIDEKIQ_WEB_PASSWORD: ${SIDEKIQ_WEB_PASSWORD}
+  RAILS_LOG_TO_STDOUT: "true"
+
+services:
+  web:
+    build: .
+    image: analisehumornoticias:local
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      <<: *app-environment
+    volumes:
+      - storage:/rails/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    image: analisehumornoticias:local
+    restart: unless-stopped
+    entrypoint: ["/rails/bin/docker-entrypoint"]
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    environment:
+      <<: *app-environment
+    volumes:
+      - storage:/rails/storage
+    depends_on:
+      web:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/18/docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: valkey/valkey:8
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  storage:

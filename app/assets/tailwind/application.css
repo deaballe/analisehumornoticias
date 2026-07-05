@@ -1,1 +1,7 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+
+/* Tailwind v4 scans from CWD by default; in Docker builds that can be huge and hang.
+   Restrict scanning to the app files that actually contain class names. */
+@source "../../views/**/*.erb";
+@source "../../helpers/**/*.rb";
+@source "../../javascript/**/*.js";

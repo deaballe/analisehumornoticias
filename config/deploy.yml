@@ -3,8 +3,8 @@ service: analisehumornoticias
 # ghcr.io/deaballe/analisehumornoticias
 image: deaballe/analisehumornoticias
 
-# Server IPs, SSH and builder.remote: config/deploy.production.yml (local, not committed)
-# Copy config/deploy.production.example.yml and fill in your values.
+# Server IPs, SSH, accessories: momoi-labs/infra/apps/analisehumornoticias/
+# Deploy runs from infra repo on push to main. Local overlay: config/deploy.production.yml
 
 servers:
   job:

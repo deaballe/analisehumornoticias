@@ -2,15 +2,15 @@
 #
 #   cp config/deploy.production.example.yml config/deploy.production.yml
 #
-# Deploy:
-#   export KAMAL_REGISTRY_PASSWORD=ghp_...
-#   export POSTGRES_PASSWORD=...
-#   export DEEPSEEK_API_KEY=sk_...
-#   export SIDEKIQ_WEB_USER=admin
-#   export SIDEKIQ_WEB_PASSWORD=$(openssl rand -base64 24)
+# Platform template (servers, accessories): momoi-labs/infra/apps/analisehumornoticias/
+# Deploy via infra repo CI. Local deploy:
+#
+#   sed "s/__KAMAL_SERVER_IP__/${KAMAL_SERVER_IP}/g" \
+#     ../infra/apps/analisehumornoticias/deploy.production.template.yml \
+#     > config/deploy.production.yml
 #   bin/kamal deploy -d production
 #
-# Secrets: .kamal/secrets-common (+ optional .kamal/secrets.production)
+# Secrets: org secrets (infra) or export locally — see infra/docs/deploy-analisehumornoticias.md
 
 servers:
   web:
