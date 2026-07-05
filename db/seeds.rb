@@ -30,30 +30,30 @@ sources = [
   {
     slug: "zero_hora",
     name: "Zero Hora",
-    base_url: "https://www.zerohora.com.br/",
-    fetch_type: "rss",
-    fetch_config: { url: "https://www.zerohora.com.br/feed/rss/" }
+    base_url: "https://gauchazh.clicrbs.com.br/",
+    fetch_type: "scrape",
+    fetch_config: { url: "https://gauchazh.clicrbs.com.br/porto-alegre/ultimas-noticias/" }
   },
   {
     slug: "correio_do_povo",
     name: "Correio do Povo",
     base_url: "https://www.correiodopovo.com.br/",
-    fetch_type: "rss",
-    fetch_config: { url: "https://www.correiodopovo.com.br/feed/" }
+    fetch_type: "scrape",
+    fetch_config: { url: "https://www.correiodopovo.com.br/not%C3%ADcias/pol%C3%ADtica" }
   },
   {
     slug: "gaucha_zh",
     name: "Gaúcha ZH",
     base_url: "https://gauchazh.clicrbs.com.br/",
-    fetch_type: "rss",
-    fetch_config: { url: "https://gauchazh.clicrbs.com.br/rss/politica/" }
+    fetch_type: "scrape",
+    fetch_config: { url: "https://gauchazh.clicrbs.com.br/politica/ultimas-noticias/" }
   },
   {
     slug: "anp",
     name: "ANP",
-    base_url: "https://www.anp.com.br/",
-    fetch_type: "scrape",
-    fetch_config: {}
+    base_url: "https://anp.com.br/",
+    fetch_type: "rss",
+    fetch_config: { url: "https://anp.com.br/feed/" }
   },
   {
     slug: "sul21",
@@ -72,9 +72,9 @@ sources = [
 ]
 
 sources.each do |attrs|
-  Source.find_or_create_by!(slug: attrs[:slug]) do |source|
-    source.assign_attributes(attrs)
-  end
+  source = Source.find_or_initialize_by(slug: attrs[:slug])
+  source.assign_attributes(attrs)
+  source.save!
 end
 
 KEYWORDS.each do |term, synonyms|
