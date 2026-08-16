@@ -31,6 +31,46 @@ RSpec.describe "Dashboard", type: :request do
     expect(response.body).to include("Cálculo de atenção")
     expect(response.body).to include("problema institucional")
   end
+
+  it "renders Top 3 for legacy briefing items without attention_score" do
+    source = create_test_source
+    keyword = create_test_keyword(term: "legado top3 teste")
+    article = Article.create!(
+      source: source,
+      title: "Matéria legada sem attention_score",
+      url: "https://example.com/legado-#{SecureRandom.hex(4)}",
+      published_at: 1.hour.ago,
+      content_snippet: "contexto legado"
+    )
+    analysis = ArticleAnalysis.create!(
+      article: article,
+      keyword: keyword,
+      sentiment_institutional: "negative",
+      sentiment_thematic: "neutral",
+      relevance_score: 80
+    )
+
+    DailyBriefing.create!(
+      briefing_date: Time.zone.today,
+      slot: "manha",
+      items: [
+        {
+          "article_id" => article.id,
+          "title" => article.title,
+          "url" => article.url,
+          "source" => source.name,
+          "relevance_score" => analysis.relevance_score,
+          "summary" => "Resumo legado sem attention_score"
+        }
+      ]
+    )
+
+    get root_path
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("Matéria legada sem attention_score")
+    expect(response.body).to include("Atenção")
+  end
 end
 
 RSpec.describe "Keywords", type: :request do
