@@ -4,16 +4,32 @@ RSpec.describe "Dashboard", type: :request do
   it "renders the home page" do
     get root_path
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("Humor do Ecossistema RS")
+    expect(response.body).to include("Barômetro Gaúcho")
+    expect(response.body).to include("Pressão da notícia sobre o ecossistema de gestão pública da SPGG/RS.")
   end
 
   it "lists monitored keywords even without a briefing" do
-    keyword = create_test_keyword(term: "tema monitorado teste")
+    create_test_keyword(term: "tema monitorado teste", section: "temas")
+    create_test_keyword(term: "danielle calazans teste", section: "spgg_equipe")
 
     get root_path
 
-    expect(response.body).to include("tema monitorado teste")
-    expect(response.body).to include("Sem cobertura neste ciclo")
+    expect(response.body).to include("Temas monitorados")
+    expect(response.body).to include("Cor: baseada no humor")
+    expect(response.body).to include("Ponto de atenção")
+    expect(response.body).to include("SPGG — secretária, adjunto e subsecretarias")
+    expect(response.body).to include("Tema Monitorado Teste")
+    expect(response.body).to include("Danielle Calazans Teste")
+    expect(response.body).to include("Nenhuma matéria encontrada para este tema no ciclo atual.")
+    expect(response.body).to include("O que é análise de humor, relevância e atenção")
+    expect(response.body).to include("Cálculo de humor")
+    expect(response.body).to include("Cálculo de relevância")
+    expect(response.body).to include("Institucional")
+    expect(response.body).to include("Temático")
+    expect(response.body).to include("Magnitude negativa")
+    expect(response.body).to include("Fontes e atualização")
+    expect(response.body).to include("Cálculo de atenção")
+    expect(response.body).to include("problema institucional")
   end
 end
 
@@ -25,32 +41,48 @@ RSpec.describe "Keywords", type: :request do
     expect(response.body).to include("keyword detalhe teste")
   end
 
-  it "shows analyses updated in the current cycle even when the article is older" do
+  it "lists matched articles ordered by date with sentiment badges" do
     keyword = create_test_keyword(term: "keyword ciclo teste")
     source = create_test_source
-    briefing = DailyBriefing.find_or_create_by!(briefing_date: Time.zone.today, slot: "manha") do |record|
+    DailyBriefing.find_or_create_by!(briefing_date: Time.zone.today, slot: "manha") do |record|
       record.items = []
     end
-    article = Article.create!(
+
+    older = Article.create!(
       source: source,
-      title: "Matéria antiga reanalisada",
+      title: "Matéria mais antiga",
       url: "https://example.com/antiga-#{SecureRandom.hex(4)}",
       published_at: 3.days.ago,
-      content_snippet: "contexto",
-      created_at: 3.days.ago
+      content_snippet: "contexto antigo"
     )
-    ArticleAnalysis.create!(
-      article: article,
-      keyword: keyword,
-      sentiment_institutional: "neutral",
-      sentiment_thematic: "negative",
-      relevance_score: 80,
-      updated_at: briefing.briefing_date.beginning_of_day + 8.hours
+    newer = Article.create!(
+      source: source,
+      title: "Matéria mais recente",
+      url: "https://example.com/recente-#{SecureRandom.hex(4)}",
+      published_at: 1.hour.ago,
+      content_snippet: "contexto recente"
     )
+
+    [ older, newer ].each do |article|
+      ArticleAnalysis.create!(
+        article: article,
+        keyword: keyword,
+        sentiment_institutional: "neutral",
+        sentiment_thematic: "negative",
+        relevance_score: 80
+      )
+    end
 
     get keyword_path(keyword)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("Matéria antiga reanalisada")
+    expect(response.body).to include("Matéria mais recente")
+    expect(response.body).to include("Matéria mais antiga")
+    expect(response.body.index("Matéria mais recente")).to be < response.body.index("Matéria mais antiga")
+    expect(response.body).to include("Mediana do humor")
+    expect(response.body).to include("O que é análise de humor, relevância e atenção")
+    expect(response.body).to match(/Humor \d+\/100/)
+    expect(response.body).to include("Relevância 80")
+    expect(response.body).to include("ranqueia destaque no painel")
   end
 end

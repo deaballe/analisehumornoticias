@@ -9,10 +9,11 @@ module TestFactories
     )
   end
 
-  def create_test_keyword(term: nil, synonyms: [])
+  def create_test_keyword(term: nil, synonyms: [], section: "temas")
     Keyword.create!(
       term: term || "test-keyword-#{SecureRandom.hex(4)}",
-      synonyms: synonyms
+      synonyms: synonyms,
+      section: section
     )
   end
 end

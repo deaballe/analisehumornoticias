@@ -8,3 +8,17 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+.metrics-reference__summary {
+  display: block;
+}
+
+.metrics-reference__caret {
+  display: block;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+
+details[open] > .metrics-reference__summary .metrics-reference__caret {
+  transform: rotate(-90deg);
+}

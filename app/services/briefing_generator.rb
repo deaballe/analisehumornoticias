@@ -26,7 +26,7 @@ class BriefingGenerator
   private
 
   def top_analyses
-    @analyses.sort_by { |analysis| -analysis.relevance_score }.first(TOP_COUNT)
+    @analyses.sort_by { |analysis| -AttentionScore.call(analysis) }.first(TOP_COUNT)
   end
 
   def build_item(analysis)
@@ -36,6 +36,8 @@ class BriefingGenerator
       url: analysis.article.url,
       source: analysis.article.source.name,
       relevance_score: analysis.relevance_score,
+      humor_score: HumorScore.call(analysis),
+      attention_score: AttentionScore.call(analysis),
       summary: generate_summary(analysis)
     }
   end
@@ -70,7 +72,7 @@ class BriefingGenerator
   end
 
   def fallback_summary(analysis)
-    snippet = analysis.article.content_snippet.to_s.strip
+    snippet = SnippetCleaner.call(analysis.article.content_snippet)
     snippet.presence || analysis.article.title
   end
 end

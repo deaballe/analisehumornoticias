@@ -1,20 +1,43 @@
-<% content_for :title, "Humor do Ecossistema RS" %>
+<% content_for :title, "Barômetro Gaúcho" %>
 
-<div class="space-y-8">
+<div class="space-y-10">
   <header class="flex flex-col gap-2 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <h1 class="text-3xl font-bold tracking-tight">Humor do Ecossistema RS</h1>
-      <p class="text-slate-600">Monitoramento de manchetes sobre gestão pública gaúcha</p>
+      <h1 class="text-3xl font-bold tracking-tight">Barômetro Gaúcho</h1>
+      <p class="text-slate-600">Pressão da notícia sobre o ecossistema de gestão pública da SPGG/RS.</p>
     </div>
     <p class="text-sm text-slate-500">Atualizado: <%= @updated_at %></p>
   </header>
 
+  <%= render "shared/metrics_reference" %>
+
   <%= render "top_briefing", briefing: @briefing %>
 
   <section>
-    <h2 class="mb-4 text-xl font-semibold">Temas monitorados</h2>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold"><%= @section_meta.fetch("temas").fetch(:title) %></h2>
+      <p class="mt-1 text-sm text-slate-600"><%= @section_meta.fetch("temas").fetch(:description) %></p>
+      <% @section_meta.fetch("temas").fetch(:legend, []).each do |line| %>
+        <p class="mt-1 text-sm text-slate-600"><%= line %></p>
+      <% end %>
+    </div>
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <% @snapshots.each do |snapshot| %>
+      <% @tema_snapshots.each do |snapshot| %>
+        <%= render "keyword_card", snapshot: snapshot %>
+      <% end %>
+    </div>
+  </section>
+
+  <section class="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 sm:p-6">
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold"><%= @section_meta.fetch("spgg_equipe").fetch(:title) %></h2>
+      <p class="mt-1 text-sm text-slate-600"><%= @section_meta.fetch("spgg_equipe").fetch(:description) %></p>
+      <% @section_meta.fetch("spgg_equipe").fetch(:legend, []).each do |line| %>
+        <p class="mt-1 text-sm text-slate-600"><%= line %></p>
+      <% end %>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <% @spgg_snapshots.each do |snapshot| %>
         <%= render "keyword_card", snapshot: snapshot %>
       <% end %>
     </div>

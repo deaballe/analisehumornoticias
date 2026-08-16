@@ -1,6 +1,6 @@
-# Humor do Ecossistema RS
+# Barômetro Gaúcho
 
-Painel público que monitora manchetes de portais gaúchos sobre gestão pública, classifica sentimento com DeepSeek e exibe Top 3, cards por keyword e gráfico de 7 dias.
+Painel público que monitora manchetes de portais gaúchos sobre gestão pública (SPGG/RS), classifica humor, relevância e atenção, e exibe Top 3, cards por tema e gráfico de até 7 dias.
 
 ## Stack
 

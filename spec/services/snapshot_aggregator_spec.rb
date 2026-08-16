@@ -22,12 +22,15 @@ RSpec.describe SnapshotAggregator do
     )
   end
 
-  it "marks snapshot critical when negative volume reaches 60%" do
-    analyses = Array.new(3) do |index|
-      build_analysis(title: "Negativa #{index}", institutional: "negative", thematic: "negative", score: 40)
-    end
-    analyses << build_analysis(title: "Neutra", institutional: "neutral", thematic: "neutral", score: 20)
-    analyses << build_analysis(title: "Positiva", institutional: "positive", thematic: "positive", score: 10)
+  it "stores median humor index instead of categorical negative share" do
+    analyses = [
+      build_analysis(title: "Negativa 1", institutional: "negative", thematic: "negative", score: 40), # 100
+      build_analysis(title: "Negativa 2", institutional: "negative", thematic: "negative", score: 40), # 100
+      build_analysis(title: "Negativa 3", institutional: "negative", thematic: "negative", score: 40), # 100
+      build_analysis(title: "Neutra", institutional: "neutral", thematic: "neutral", score: 20), # 50
+      build_analysis(title: "Positiva", institutional: "positive", thematic: "positive", score: 10) # 0
+    ]
+    # sorted scores: 0, 50, 100, 100, 100 → median 100
 
     snapshot = described_class.call(
       keyword: keyword,
@@ -36,7 +39,10 @@ RSpec.describe SnapshotAggregator do
       slot: "manha"
     )
 
-    expect(snapshot.pct_negative.to_f).to eq(60.0)
+    expect(snapshot.pct_negative.to_f).to eq(100.0)
+    expect(snapshot.median_relevance.to_f).to eq(40.0)
+    expect(snapshot.pct_positive.to_f).to eq(20.0) # 1/5 in positive band
+    expect(snapshot.pct_neutral.to_f).to eq(20.0) # 1/5 neutral band
     expect(snapshot.is_critical).to be(true)
   end
 
@@ -53,5 +59,23 @@ RSpec.describe SnapshotAggregator do
     )
 
     expect(snapshot.is_critical).to be(true)
+    expect(snapshot.pct_negative.to_f).to eq(100.0)
+  end
+
+  it "uses median 50 for balanced positive and negative pair" do
+    analyses = [
+      build_analysis(title: "Boa", institutional: "positive", thematic: "positive", score: 10),
+      build_analysis(title: "Ruim", institutional: "negative", thematic: "negative", score: 10)
+    ]
+
+    snapshot = described_class.call(
+      keyword: keyword,
+      analyses: analyses,
+      snapshot_date: Date.current,
+      slot: "manha"
+    )
+
+    expect(snapshot.pct_negative.to_f).to eq(50.0)
+    expect(snapshot.is_critical).to be(false)
   end
 end

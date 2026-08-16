@@ -4,6 +4,7 @@ class KeywordsController < ApplicationController
     @briefing = DailyBriefing.current
     @snapshot = current_snapshot
     @analyses = current_analyses
+    @median_humor = HumorScore.median(@analyses)
   end
 
   private
@@ -19,20 +20,12 @@ class KeywordsController < ApplicationController
   end
 
   def current_analyses
-    return ArticleAnalysis.none unless @briefing
-
+    # Show every matched analysis for this keyword. The card's article_count is
+    # built from the same set on the current day; filtering by updated_at hid
+    # valid matérias after backfills/re-runs.
     ArticleAnalysis.includes(article: :source)
                    .joins(:article)
                    .where(keyword: @keyword)
-                   .where("article_analyses.updated_at >= ?", cycle_start)
-                   .order(relevance_score: :desc)
-  end
-
-  def cycle_start
-    if @briefing.slot == "manha"
-      @briefing.briefing_date.beginning_of_day + 7.hours
-    else
-      @briefing.briefing_date.beginning_of_day + 18.hours
-    end
+                   .order(Arel.sql("COALESCE(articles.published_at, articles.created_at) DESC"), relevance_score: :desc, id: :desc)
   end
 end

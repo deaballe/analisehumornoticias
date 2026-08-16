@@ -1,9 +1,25 @@
 <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-  <h2 class="mb-4 text-lg font-semibold">Tendência 7 dias — % negativo</h2>
+  <h2 class="mb-1 text-lg font-semibold">Humor e relevância por tema</h2>
+  <div class="mb-4 space-y-1 text-sm text-slate-500">
+    <p>Todos os temas com matérias no período (até 7 dias com cobertura). Barras: humor mediano e relevância mediana.</p>
+    <p>Humor: 0 = positivo · 50 = neutro · 100 = negativo.</p>
+    <p>
+      Relevância: 0 a 100 — quanto maior, mais importante a matéria no painel
+      (soma de até 25 pts em recência, palavra-chave no título, cruzamento de fontes e tom negativo).
+    </p>
+  </div>
 
   <% if trend_data.present? %>
-    <%= line_chart trend_data, height: "320px", library: { scales: { y: { max: 100, min: 0 } } } %>
+    <%= column_chart trend_data,
+                     height: "380px",
+                     discrete: true,
+                     library: {
+                       scales: {
+                         y: { max: 100, min: 0, title: { display: true, text: "Pontuação (0–100)" } },
+                         x: { ticks: { maxRotation: 45, minRotation: 30 } }
+                       }
+                     } %>
   <% else %>
-    <p class="text-slate-500">Sem histórico suficiente para exibir o gráfico.</p>
+    <p class="text-slate-500">Ainda não há matérias com cobertura para montar o gráfico.</p>
   <% end %>
 </section>
