@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_29_004958) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_16_133146) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_29_004958) do
     t.datetime "created_at", null: false
     t.boolean "is_critical", default: false, null: false
     t.bigint "keyword_id", null: false
+    t.decimal "median_relevance", precision: 5, scale: 2, default: "0.0", null: false
     t.decimal "pct_negative", precision: 5, scale: 2, default: "0.0", null: false
     t.decimal "pct_neutral", precision: 5, scale: 2, default: "0.0", null: false
     t.decimal "pct_positive", precision: 5, scale: 2, default: "0.0", null: false
@@ -65,9 +66,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_29_004958) do
 
   create_table "keywords", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "section", default: "temas", null: false
     t.string "synonyms", default: [], array: true
     t.string "term", null: false
     t.datetime "updated_at", null: false
+    t.index ["section"], name: "index_keywords_on_section"
     t.index ["term"], name: "index_keywords_on_term", unique: true
   end
 

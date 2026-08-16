@@ -53,7 +53,7 @@ class BaseScraper
         title: entry.title.to_s.strip,
         url: entry.url.to_s.strip,
         published_at: entry.published || entry.updated,
-        content_snippet: entry.summary.to_s.strip.truncate(500)
+        content_snippet: SnippetCleaner.call(entry.summary).truncate(500)
       }
     end.reject { |item| item[:title].blank? || item[:url].blank? }
   end

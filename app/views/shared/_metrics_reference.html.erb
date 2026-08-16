@@ -1,0 +1,117 @@
+<details class="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+  <summary class="metrics-reference__summary cursor-pointer list-none marker:content-none [&::-webkit-details-marker]:hidden">
+    <span class="flex w-full items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-slate-900">O que é análise de humor, relevância e atenção</h2>
+      <svg
+        class="metrics-reference__caret shrink-0"
+        width="18"
+        height="18"
+        viewBox="0 0 12 12"
+        fill="#64748b"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M7.8 2.1v7.8L1.8 6 7.8 2.1z" />
+      </svg>
+    </span>
+  </summary>
+
+  <div class="mt-4 space-y-6 border-t border-slate-100 pt-4">
+    <p class="text-slate-600">
+      Painel público que monitora manchetes de portais gaúchos sobre gestão pública,
+      classifica o humor com duas lentes e destaca temas críticos.
+    </p>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">O que você está vendo</h3>
+      <ul class="list-disc space-y-2 pl-5 text-slate-700">
+        <li><strong>Temas monitorados</strong> — pautas genéricas (segurança, habitação, enchentes, etc.).</li>
+        <li><strong>SPGG</strong> — secretária, adjunto e subsecretarias com seus titulares.</li>
+        <li><strong>Cards coloridos</strong> — há matérias no ciclo atual; o tom segue o humor mediano.</li>
+        <li><strong>Cards cinza</strong> — sem cobertura neste ciclo (não há matérias casadas com o tema).</li>
+        <li><strong>Top 3</strong> — matérias de maior <strong>atenção</strong> no ciclo (humor + relevância; prioriza problema institucional).</li>
+        <li><strong>Gráfico por tema</strong> — humor mediano e relevância mediana de todos os temas com matérias (até 7 dias).</li>
+      </ul>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">Cálculo de humor (0 a 100)</h3>
+      <p class="text-slate-700">
+        Cada matéria recebe um <strong>índice de humor</strong> a partir de duas classificações
+        feitas por IA (DeepSeek):
+      </p>
+      <ul class="list-disc space-y-2 pl-5 text-slate-700">
+        <li><strong>Institucional</strong> — como a notícia trata o governo / Estado.</li>
+        <li><strong>Temático</strong> — como trata o tema da palavra-chave.</li>
+      </ul>
+      <p class="text-slate-700">
+        Cada lente vira um número: positivo = 0, neutro = 50, negativo = 100.
+        O humor da matéria é a <strong>média</strong> das duas lentes.
+        Por isso as lentes podem divergir (ex.: institucional positivo e temático negativo)
+        e o humor fica no meio da escala.
+      </p>
+      <p class="text-slate-700">
+        <strong>Leitura da escala:</strong> quanto <strong>maior</strong> o humor (mais perto de 100),
+        <strong>pior</strong> o tom da cobertura; quanto <strong>menor</strong> (mais perto de 0),
+        <strong>melhor</strong> / mais positivo.
+      </p>
+      <p class="text-slate-700">
+        No card do tema, usamos a <strong>mediana</strong> dos humores das matérias
+        (não a média aritmética), para um valor menos distorcido por extremos.
+      </p>
+      <p class="text-sm text-slate-500">Escala: 0 = positivo · 50 = neutro · 100 = negativo.</p>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">Cálculo de relevância (0 a 100)</h3>
+      <p class="text-slate-700">
+        A relevância pontua urgência/destaque de cada matéria (selo no detalhe e no Top 3).
+        <strong>Quanto maior a relevância, mais importante</strong> é a matéria no painel —
+        mas o Top 3 usa a <strong>atenção</strong> (abaixo), não só a relevância.
+        É a soma de quatro partes (até 25 pontos cada):
+      </p>
+      <ol class="list-decimal space-y-2 pl-5 text-slate-700">
+        <li><strong>Recência</strong> — matérias mais novas pontuam mais (cai a zero após ~48h).</li>
+        <li><strong>Keyword no título</strong> — 25 se o termo/sinônimo aparece no título; senão 0.</li>
+        <li><strong>Cruzamento de fontes</strong> — 25 se o mesmo título aparece em 2+ portais na coleta.</li>
+        <li><strong>Magnitude negativa</strong> — até 25 se as lentes institucional e/ou temática forem negativas.</li>
+      </ol>
+      <p class="text-slate-700">
+        Relevância mede urgência/destaque no painel; <strong>não</strong> substitui o humor.
+      </p>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">Cálculo de atenção (Top 3)</h3>
+      <p class="text-slate-700">
+        A <strong>atenção</strong> responde “o que olhar primeiro?”. É a média de humor e relevância,
+        com <strong>+20 pontos</strong> quando a lente <strong>institucional</strong> é negativa
+        (problema ligado ao governo/Estado).
+      </p>
+      <p class="text-slate-700">
+        Assim, uma matéria operacional com relevância alta mas humor mediano (ex.: prisão com tom
+        institucional positivo) fica atrás de uma com humor muito negativo e problema institucional,
+        mesmo que a relevância seja um pouco menor.
+      </p>
+      <p class="text-slate-700">
+        O Top 3 lista as três matérias de maior atenção do ciclo.
+      </p>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">Ponto crítico</h3>
+      <p class="text-slate-700">
+        Um tema fica em alerta quando a mediana de humor é ≥ 60, ou quando existe matéria
+        de alto impacto (relevância ≥ 70) com as duas lentes negativas.
+      </p>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-xl font-semibold text-slate-900">Fontes e atualização</h3>
+      <p class="text-slate-700">
+        Coleta automática a partir de portais gaúchos (RSS/HTML), duas vezes ao dia
+        (manhã e tarde). O painel é informativo e de dados abertos — sem login.
+      </p>
+    </section>
+  </div>
+</details>

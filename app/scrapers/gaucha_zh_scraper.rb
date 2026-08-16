@@ -1,11 +1,13 @@
 class GauchaZhScraper < BaseScraper
   LIST_URL = "https://gauchazh.clicrbs.com.br/politica/ultimas-noticias/".freeze
+  LINK_PATTERN = %r{/politica/noticia/}i
 
   def fetch
     parse_html_listing(
       page_url: @source.fetch_config.fetch("url", LIST_URL),
-      link_pattern: %r{/politica/noticia/},
-      base_url: "https://gauchazh.clicrbs.com.br"
+      link_pattern: LINK_PATTERN,
+      base_url: "https://gauchazh.clicrbs.com.br",
+      limit: 40
     )
   end
 end

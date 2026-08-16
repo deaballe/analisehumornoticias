@@ -1,17 +1,26 @@
 <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-  <h2 class="mb-4 text-lg font-semibold">Leitura rápida — Top 3</h2>
+  <div class="mb-4">
+    <h2 class="text-lg font-semibold">Leitura rápida — Top 3</h2>
+    <p class="mt-1 text-sm text-slate-600">Classificação baseada em atenção (humor + relevância; prioriza problema institucional)</p>
+    <p class="mt-1 text-sm text-slate-600">Cor baseada em humor</p>
+  </div>
 
   <% if briefing&.items.present? %>
     <ol class="space-y-4">
       <% briefing.items.each_with_index do |item, index| %>
-        <li class="rounded-lg border border-slate-100 bg-slate-50 p-4">
-          <div class="mb-2 flex items-center gap-2 text-sm text-slate-500">
+        <% humor = briefing_item_humor(item) %>
+        <li class="rounded-lg border p-4 <%= briefing_item_tone_class(item) %>">
+          <div class="mb-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <span class="font-semibold text-slate-700"><%= index + 1 %>.</span>
             <span><%= item["source"] %></span>
             <span>·</span>
-            <span>Score <%= item["relevance_score"] %></span>
+            <span>Atenção <%= number_with_precision(item["attention_score"] || briefing_item_attention(item), precision: 0) %></span>
+            <span>·</span>
+            <span>Relevância <%= item["relevance_score"] %></span>
+            <span>·</span>
+            <span>Humor <%= number_with_precision(humor, precision: 0) %>/100</span>
           </div>
-          <p class="mb-2 text-slate-800"><%= item["summary"] %></p>
+          <p class="mb-2 text-slate-800"><%= SnippetCleaner.call(item["summary"]) %></p>
           <%= link_to item["title"], item["url"], target: "_blank", rel: "noopener", class: "text-sm font-medium text-blue-700 hover:underline" %>
         </li>
       <% end %>

@@ -1,23 +1,4 @@
-KEYWORDS = [
-  [ "acordo de resultados", %w[acordos\ de\ resultados acordo\ de\ resultados\ rs] ],
-  [ "projetos estratégicos", %w[projeto\ estratégico projetos\ estrategicos] ],
-  [ "plano plurianual", %w[ppa plano\ plurianual orçamento\ plurianual] ],
-  [ "ppa rs", %w[ppa plano\ plurianual\ rs orçamento\ do\ estado fundo\ constitucional] ],
-  [ "modernização administrativa", %w[modernização\ do\ estado modernizacao\ administrativa transformação\ administrativa] ],
-  [ "reforma administrativa", %w[reforma\ do\ estado reforma\ do\ funcionalismo reestruturação\ administrativa] ],
-  [ "eficiência na gestão", %w[eficiência gestão\ eficiente eficiencia\ na\ gestao gestão\ pública] ],
-  [ "governo digital", %w[gov.br transformação\ digital governo\ eletrônico governo\ eletronico digitalização] ],
-  [ "rs.gov.br", %w[portal\ rs\ gov estado.rs.gov.br estado.rs.gov] ],
-  [ "inovação no setor público", %w[inovação\ pública inovacao\ no\ setor\ publico] ],
-  [ "funcionalismo público", %w[funcionalismo servidor\ público servidores\ públicos rpps previdência\ própria] ],
-  [ "servidores estaduais", %w[servidor\ estadual servidores\ do\ estado funcionário\ público\ estadual servidores] ],
-  [ "concurso público rs", %w[concurso\ público concurso\ rs concurso\ público\ rs concurso\ estadual] ],
-  [ "patrimônio do estado", %w[patrimônio\ público patrimonio\ do\ estado bens\ públicos] ],
-  [ "parcerias público-privadas", %w[ppp parceria\ público-privada parcerias\ publico-privadas] ],
-  [ "ppp rs", %w[ppp parcerias\ público-privadas parceria\ público-privada\ rs] ],
-  [ "concessões públicas", %w[concessão\ pública concessoes\ publicas privatização] ],
-  [ "spgg", %w[secretaria\ de\ planejamento\ governança\ e\ gestão secretaria\ de\ planejamento planejamento\ governança\ e\ gestão] ]
-].freeze
+require Rails.root.join("lib/seed_keywords")
 
 sources = [
   {
@@ -32,7 +13,7 @@ sources = [
     name: "Zero Hora",
     base_url: "https://gauchazh.clicrbs.com.br/",
     fetch_type: "scrape",
-    fetch_config: { url: "https://gauchazh.clicrbs.com.br/pioneiro/politica/ultimas-noticias/" }
+    fetch_config: { url: "https://gauchazh.clicrbs.com.br/politica/ultimas-noticias/" }
   },
   {
     slug: "correio_do_povo",
@@ -93,10 +74,19 @@ if (anp = Source.find_by(slug: "anp")) && anp.articles.none?
   anp.destroy
 end
 
-KEYWORDS.each do |term, synonyms|
+SeedKeywords.each_with_section do |term, synonyms, section|
   keyword = Keyword.find_or_initialize_by(term: term)
   keyword.synonyms = synonyms
+  keyword.section = section
   keyword.save!
 end
 
-puts "Seeded #{Source.count} sources and #{Keyword.count} keywords"
+keep_terms = SeedKeywords::LIST.map(&:first)
+Keyword.where.not(term: keep_terms).find_each do |keyword|
+  keyword.article_analyses.delete_all
+  keyword.daily_snapshots.delete_all
+  keyword.destroy!
+end
+
+puts "Seeded #{Source.count} sources and #{Keyword.count} keywords " \
+     "(temas=#{Keyword.temas.count}, spgg_equipe=#{Keyword.spgg_equipe.count})"
