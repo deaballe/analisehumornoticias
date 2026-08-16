@@ -61,6 +61,16 @@ module ApplicationHelper
     analysis ? HumorScore.call(analysis) : 50.0
   end
 
+  def briefing_item_attention(item)
+    return item["attention_score"].to_f if item["attention_score"].present?
+
+    article_id = item["article_id"]
+    return 0.0 if article_id.blank?
+
+    analysis = ArticleAnalysis.where(article_id: article_id).order(relevance_score: :desc).first
+    analysis ? AttentionScore.call(analysis) : 0.0
+  end
+
   def briefing_item_tone_class(item)
     humor = briefing_item_humor(item)
 

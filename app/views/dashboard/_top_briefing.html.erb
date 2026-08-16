@@ -14,7 +14,7 @@
             <span class="font-semibold text-slate-700"><%= index + 1 %>.</span>
             <span><%= item["source"] %></span>
             <span>·</span>
-            <span>Atenção <%= number_with_precision(item["attention_score"] || briefing_item_attention(item), precision: 0) %></span>
+            <span>Atenção <%= number_with_precision(briefing_item_attention(item), precision: 0) %></span>
             <span>·</span>
             <span>Relevância <%= item["relevance_score"] %></span>
             <span>·</span>
